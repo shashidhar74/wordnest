@@ -19,6 +19,20 @@ services:
     plan: free
     region: singapore            # same region as the Neon database
     rootDir: ai-service
+    # Redeploy only for files the running service uses. Training material (notebooks, datasets,
+    # tests, the dev requirements) doesn't change the service, so editing it shouldn't redeploy.
+    # A retrained model (models/*.joblib) DOES redeploy. Paths are relative to the repo root.
+    # (frontend/ and backend/ need no filter: with rootDir set, Render already redeploys a
+    # service only when files inside its own folder change.)
+    buildFilter:
+      paths:
+        - ai-service/**
+      ignoredPaths:
+        - ai-service/notebooks/**
+        - ai-service/data/**
+        - ai-service/tests/**
+        - ai-service/requirements.txt
+        - ai-service/**/*.md
     buildCommand: pip install -r requirements-prod.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
