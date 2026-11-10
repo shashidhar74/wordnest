@@ -1,0 +1,70 @@
+# Render Blueprint: creates all three WordNest services in one go.
+# Render → New → Blueprint → pick this repo. You'll be asked for the values marked `sync: false`.
+# Docs: https://render.com/docs/blueprint-spec
+#
+#   Browser → wordnest (static Angular) ─ /api/* rewrite ─► wordnest-api (Express) ─► Neon Postgres
+#                                                                 └──────────────► wordnest-ai (FastAPI)
+#
+# If Render gives a service a different URL (name already taken, e.g. wordnest-api-x1y2.onrender.com),
+# update AI_SERVICE_URL and the /api/* rewrite below (or in the dashboard) to the real URLs.
+
+services:
+  # ---- Python intent model (ai-service/) ------------------------------------------------
+  - type: web
+    name: wordnest-ai
+    runtime: python
+    plan: free
+    region: singapore            # same region as the Neon database
+    rootDir: ai-service
+    buildCommand: pip install -r requirements-prod.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.13.14           # the model was trained/tested on 3.13 (Render's default is newer)
+
+  # ---- Express API (backend/) -------------------------------------------------------------
+  - type: web
+    name: wordnest-api
+    runtime: node
+    plan: free
+    region: singapore
+    rootDir: backend
+    buildCommand: npm ci
+    startCommand: node app.js
+    healthCheckPath: /docs/openapi.json   # cheap, no database query
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: DATABASE_URL        # Neon connection string, with sslmode=verify-full
+        sync: false
+      - key: JWT_SECRET          # Render generates a random 256-bit value
+        generateValue: true
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3.5-flash
+      - key: AI_PROVIDER
+        value: gemini
+      - key: AI_SERVICE_URL      # public URL of wordnest-ai (check it after the first deploy)
+        value: https://wordnest-ai.onrender.com
+
+  # ---- Angular frontend (frontend/) -------------------------------------------------------
+  - type: web
+    name: wordnest
+    runtime: static
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    staticPublishPath: dist/nodejs-resp-api-fe/browser   # relative to rootDir
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+    routes:
+      # API calls → the backend (same origin for the browser, so no CORS issues)
+      - type: rewrite
+        source: /api/*
+        destination: https://wordnest-api.onrender.com/*
+      # Angular routes (/posts/8 …) → the app; real files (js, css, images) are served first
+      - type: rewrite
+        source: /*
+        destination: /index.html
