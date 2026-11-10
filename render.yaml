@@ -5,8 +5,11 @@
 #   Browser → wordnest (static Angular) ─ /api/* rewrite ─► wordnest-api (Express) ─► Neon Postgres
 #                                                                 └──────────────► wordnest-ai (FastAPI)
 #
-# If Render gives a service a different URL (name already taken, e.g. wordnest-api-x1y2.onrender.com),
-# update AI_SERVICE_URL and the /api/* rewrite below (or in the dashboard) to the real URLs.
+# Live URLs (Render added suffixes where the name was taken):
+#   frontend  https://wordnest-f2mv.onrender.com
+#   API       https://wordnest-api-16oz.onrender.com
+#   AI        https://wordnest-ai.onrender.com
+# If a URL changes, update AI_SERVICE_URL and the /api/* rewrite below to match.
 
 services:
   # ---- Python intent model (ai-service/) ------------------------------------------------
@@ -63,7 +66,7 @@ services:
       # API calls → the backend (same origin for the browser, so no CORS issues)
       - type: rewrite
         source: /api/*
-        destination: https://wordnest-api.onrender.com/*
+        destination: https://wordnest-api-16oz.onrender.com/*
       # Angular routes (/posts/8 …) → the app; real files (js, css, images) are served first
       - type: rewrite
         source: /*
