@@ -1,0 +1,15 @@
+{
+  "name": "blog-app",
+  "private": true,
+  "scripts": {
+    "install:all": "npm install && npm install --prefix backend && npm install --prefix frontend",
+    "dev": "concurrently -n api,web,ai -c blue,green,magenta \"npm run dev --prefix backend\" \"npm start --prefix frontend\" \"npm run dev:ai\"",
+    "dev:api": "npm run dev --prefix backend",
+    "dev:web": "npm start --prefix frontend",
+    "dev:ai": "ai-service\\.venv\\Scripts\\python.exe -m uvicorn app.main:app --app-dir ai-service --port 8000 --reload --reload-dir ai-service/app",
+    "test:ai": "cd ai-service && .venv\\Scripts\\python.exe -m pytest -q"
+  },
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

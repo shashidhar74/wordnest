@@ -1,0 +1,8 @@
+node_modules/
+.env
+frontend/dist/
+frontend/.angular/
+
+# uploaded post images: keep them out of git, but keep the folder (multer needs it to exist)
+backend/images/*
+!backend/images/.gitkeep

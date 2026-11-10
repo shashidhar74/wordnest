@@ -1,0 +1,85 @@
+text,label
+Show me posts about growing a small blog audience,find_posts
+Can you find articles on beginner-friendly Python projects?,find_posts
+I want to read something by the author who wrote about remote work last week,find_posts
+Find the latest posts from Priya Sharma,find_posts
+Surprise me with a topic I haven't read before,find_posts
+Any fresh reads on travel photography?,find_posts
+Mujhe AI aur blogging ke baare mein kuch posts dikhao,find_posts
+Blog par SEO tips wali posts search karo na,find_posts
+Looking for posts discussing work-life balance,find_posts
+Can I see what Rahul has published recently?,find_posts
+Show me a few posts I might have missed,find_posts
+Search posts tagged with sustainable living,find_posts
+I'm in a rush—give me the quick version of this article,summarize_post
+Can you boil this post down to three sentences?,summarize_post
+"Just tell me the main takeaway, no background details",summarize_post
+What's the conclusion of the post called 'Why We Sleep Better'?,summarize_post
+Summarise the article 'A Simple Guide to Container Gardening',summarize_post
+I don't have time to read all this. What is it saying?,summarize_post
+Is post ka short summary de do please,summarize_post
+"Bas iska final point batao, pura explain mat karo",summarize_post
+Give me the key points from the post about budgeting,summarize_post
+What does the author ultimately recommend in this post?,summarize_post
+Can you explain this post briefly in plain English?,summarize_post
+Summarize the post titled 'The Future of Local News' for me,summarize_post
+Write a blog post about staying motivated while learning to code,create_post
+Turn my idea about city gardening into a complete article,create_post
+I have a photo of my weekend hike; make a post caption and intro for it,create_post
+Create a post to go with this picture of my homemade cake,create_post
+Draft a funny blog post about meetings that could have been emails,create_post
+Write this in a professional tone for a business audience,create_post
+Mere liye freelancing ke benefits par ek blog likh do,create_post
+Ek funny post bana do about hostel life,create_post
+Can you write an engaging article on saving water?,create_post
+I have the topic already: healthy habits for students. Please write the post,create_post
+Make a formal announcement post about our new community launch,create_post
+Write something warm and personal about my first solo trip,create_post
+The editor keeps showing a 500 error when I try to publish. What should I do?,site_help
+Why does my upload stay stuck at processing?,site_help
+My post says pending review—what does that status mean?,site_help
+How large can an image be when I add it to a post?,site_help
+Which image formats are allowed on the blog?,site_help
+What is the difference between writer and admin roles?,site_help
+I can't sign in even after resetting my password,site_help
+My account got locked. How can I get access again?,site_help
+"Post publish nahi ho raha, baar baar error aa raha hai",site_help
+Mera profile update kyun nahi ho raha?,site_help
+How do I write a post on this website?,site_help
+Where can I change the visibility settings for an article?,site_help
+Hey there!,greeting
+"Good morning, how's it going?",greeting
+"Hi, I'm new here",greeting
+Hello blog buddy,greeting
+"Thanks a lot, that helped me",greeting
+"Awesome, appreciate your help!",greeting
+"Shukriya yaar, bohot help hui",greeting
+"Okay bye, catch you later",greeting
+"I'm heading out now, see you",greeting
+Have a nice evening!,greeting
+What's up?,greeting
+Namaste! Kaise ho?,greeting
+What's the weather going to be like tomorrow?,out_of_scope
+Who won the cricket match last night?,out_of_scope
+What time is it in Tokyo right now?,out_of_scope
+Can you calculate 847 divided by 13?,out_of_scope
+Tell me the latest news about the election,out_of_scope
+Can you book me a cab using another app?,out_of_scope
+Please open Spotify and play some music,out_of_scope
+Translate this sentence into French,out_of_scope
+Mujhe batao aaj Bengaluru mein temperature kitna hai,out_of_scope
+2 plus 2 kitna hota hai?,out_of_scope
+asdfjkl qwerty zzzz,out_of_scope
+Can you help me design a logo for my shop?,out_of_scope
+Can you tell me how many of my articles are still waiting for an admin?,post_report
+I'd like a quick overview of my posts grouped by status,post_report
+What exactly did the reviewer complain about in my last rejected article?,post_report
+The admin sent my cooking post back. What do they want me to change?,post_report
+How many articles has everyone published so far in total?,post_report
+Give me a breakdown: drafts vs published vs rejected,post_report
+Mere saare posts ka status batao,post_report
+Kitne articles abhi review mein atke hue hain?,post_report
+Please export every post with its current status into a file I can open in Excel,post_report
+I need a CSV of all rejected posts for my records,post_report
+What was the feedback on 'The Juntleman'?,post_report
+As an admin I want numbers for each status,post_report

@@ -1,0 +1,420 @@
+text,label
+any posts about cooking?,find_posts
+show me articles on travel,find_posts
+do you have something on python programming,find_posts
+i want to read about healthy eating,find_posts
+find posts about machine learning,find_posts
+are there blogs related to fitness,find_posts
+search for composting,find_posts
+what have people written about startups,find_posts
+recommend a post on photography,find_posts
+latest posts on web development,find_posts
+anything on mental health?,find_posts
+looking for a recipe blog,find_posts
+posts by Asha,find_posts
+show me the most recent articles,find_posts
+is there an article explaining docker,find_posts
+koi post hai cricket ke baare mein,find_posts
+travel ke posts dikhao,find_posts
+I wanna read smth about budgeting,find_posts
+got any stories about hiking,find_posts
+which posts talk about angular,find_posts
+list articles tagged javascript,find_posts
+help me find a post on gardening tips,find_posts
+where can I read about electric cars,find_posts
+shw me posts abt yoga,find_posts
+need articles for beginners in investing,find_posts
+did anyone write about remote work,find_posts
+find me something interesting to read,find_posts
+articles on climate change please,find_posts
+any tutorials on sql joins,find_posts
+search the blog for productivity,find_posts
+how many posts are there,post_report
+how many posts we have,post_report
+total number of posts on the blog,post_report
+count all the articles,post_report
+how many articles have been published,post_report
+kitne posts hai blog par,post_report
+show me all posts,find_posts
+list every post on the blog,find_posts
+what are the latest posts,find_posts
+how many blogs are live right now,post_report
+summarize the composting post,summarize_post
+give me a short version of this article,summarize_post
+tl;dr of the latest post,summarize_post
+can you sum up the post about travel in a few lines,summarize_post
+what is this post about,summarize_post
+"i don't have time, just tell me the main points",summarize_post
+summary please,summarize_post
+make this article shorter,summarize_post
+what are the key takeaways from the docker post,summarize_post
+explain the main idea of this blog in 3 sentences,summarize_post
+quick recap of the fitness article,summarize_post
+condense this post for me,summarize_post
+give me the gist,summarize_post
+iss post ka summary do,summarize_post
+short mein batao ye post kya keh raha hai,summarize_post
+summarise the post on startups,summarize_post
+brief overview of the article I opened,summarize_post
+"what does the author say in this post, briefly",summarize_post
+"too long, summarize",summarize_post
+bullet points of this post please,summarize_post
+can i get an abstract of the machine learning article,summarize_post
+sum it up,summarize_post
+what's the point of this article,summarize_post
+key points from the post on remote work,summarize_post
+shorten the healthy eating blog for me,summarize_post
+summry of this pls,summarize_post
+give a one paragraph summary of the angular post,summarize_post
+what did i miss in this long post,summarize_post
+highlights of the photography article,summarize_post
+"in short, what's this post saying",summarize_post
+how do I create a new post,site_help
+how to submit my post for review,site_help
+why can't I edit my post,site_help
+how do i upload an image,site_help
+what image formats are allowed,site_help
+"my post was rejected, what now",site_help
+what does clarification status mean,site_help
+how long does approval take,site_help
+how do i become a creator,site_help
+how can i delete my draft,site_help
+i forgot my password,site_help
+how do I sign up,site_help
+why does it say session expired,site_help
+where do I see my drafts,site_help
+how to log out,site_help
+can i change the image after submitting,site_help
+what is the max image size,site_help
+what does pending mean,site_help
+who approves the posts,site_help
+how to close a published post,site_help
+post kaise submit karte hai,site_help
+image upload nahi ho raha,site_help
+why is the save button disabled,site_help
+how do i use write with AI,site_help
+can admins edit my post,site_help
+what happens after I click submit,site_help
+how to change my account email,site_help
+i got an error while saving my post,site_help
+is there a limit on title length,site_help
+how do i reply to the admin's comment,site_help
+hi,greeting
+hello,greeting
+hey there,greeting
+good morning,greeting
+good evening,greeting
+hii,greeting
+helo,greeting
+hey bot,greeting
+yo,greeting
+namaste,greeting
+"hello, how are you?",greeting
+hi :),greeting
+thanks,greeting
+thank you so much,greeting
+thx,greeting
+bye,greeting
+goodbye,greeting
+see you later,greeting
+ok thanks bye,greeting
+nice to meet you,greeting
+howdy,greeting
+"hey, anyone here?",greeting
+good afternoon,greeting
+hi there friend,greeting
+cheers,greeting
+"great, thanks for the help",greeting
+hola,greeting
+kaise ho,greeting
+hello bot who are you,greeting
+morning!,greeting
+what's the weather tomorrow,out_of_scope
+book a flight to delhi,out_of_scope
+what is 245 * 17,out_of_scope
+who won the cricket match yesterday,out_of_scope
+tell me a joke,out_of_scope
+play some music,out_of_scope
+what's the price of bitcoin,out_of_scope
+write my college essay,out_of_scope
+translate this to french,out_of_scope
+order pizza,out_of_scope
+what time is it in london,out_of_scope
+set an alarm for 6am,out_of_scope
+who is the prime minister of india,out_of_scope
+can you hack my friend's instagram,out_of_scope
+what's the capital of australia,out_of_scope
+recommend a good movie,out_of_scope
+how do I fix my car engine,out_of_scope
+send an email to my boss,out_of_scope
+aaj ka mausam kaisa hai,out_of_scope
+what's the meaning of life,out_of_scope
+do my maths homework,out_of_scope
+call mom,out_of_scope
+how tall is mount everest,out_of_scope
+what stocks should i buy,out_of_scope
+generate a picture of a cat for my wallpaper,out_of_scope
+asdfghjkl,out_of_scope
+lol,out_of_scope
+open youtube,out_of_scope
+what is your favourite colour,out_of_scope
+convert 100 usd to inr,out_of_scope
+create a new post about travel in goa,create_post
+write a blog post on healthy breakfast ideas,create_post
+draft a post about my trip to manali with a photo,create_post
+make a post on python tips for beginners,create_post
+can you write an article about remote work for me,create_post
+new post: 5 tips for better sleep,create_post
+help me write a post about composting and add an image,create_post
+"i want to post about my cooking experiment, here's the pic",create_post
+publish a post about electric cars,create_post
+start a draft on machine learning basics,create_post
+write something for the blog about yoga,create_post
+create an article with this image about my hike,create_post
+generate a post on budgeting with a cover image,create_post
+compose a blog about startup lessons,create_post
+put up a post about our team outing with these photos,create_post
+post likhna hai cricket ke baare mein,create_post
+ek naya post banao travel par,create_post
+write a funny post about monday mornings,create_post
+can u make a draft abt photography tips,create_post
+add a new article on docker for beginners with a picture,create_post
+I'd like to create a post about gardening,create_post
+write a formal article on climate change,create_post
+post this photo with a short story about it,create_post
+create a blog entry about my first marathon,create_post
+make me a new post on angular signals,create_post
+draft an informative post about saving money,create_post
+write and upload a post about street food with an image,create_post
+new article about hiking trails near pune,create_post
+turn this topic into a blog post: home workouts,create_post
+"create post: why I love reading, use this cover photo",create_post
+give me a report of all posts,post_report
+how many posts are pending,post_report
+how many drafts do I have,post_report
+show status wise count of posts,post_report
+posts count by status,post_report
+how many posts were rejected,post_report
+why was my post rejected,post_report
+why did the admin reject my article,post_report
+what was the reason for rejection,post_report
+why was the juntleman post rejected,post_report
+reason my post got sent back,post_report
+what did the reviewer say about my post,post_report
+how many posts are waiting for approval,post_report
+stats of my posts,post_report
+how many published vs draft,post_report
+kitne posts reject hue,post_report
+mera post reject kyu hua,post_report
+breakdown of posts by status,post_report
+how many of my posts are published,post_report
+which of my posts were rejected,post_report
+why is my post in clarification,post_report
+what feedback did the admin give,post_report
+give me blog statistics,post_report
+download the list of posts with status,post_report
+export all posts to excel,post_report
+can i get a csv of my posts,post_report
+download my posts report,post_report
+export post list with statuses,post_report
+posts ki list download karo,post_report
+posts related to mental wellness,find_posts
+do we have anything on kubernetes,find_posts
+show articles written by the admin,find_posts
+find blogs mentioning react hooks,find_posts
+which posts mention budgeting tips,find_posts
+latest article about street food,find_posts
+I need reading material on leadership,find_posts
+anything new on the blog today,find_posts
+blog posts from last month,find_posts
+open the posts list,find_posts
+show me trending posts,find_posts
+any guide for first time travellers,find_posts
+pls find post on diet plans,find_posts
+fnd posts abt coding,find_posts
+search: home decor ideas,find_posts
+look up articles about yoga for beginners,find_posts
+koi travel wala post dikhao,find_posts
+python wale articles dikhao na,find_posts
+mujhe cooking ke posts chahiye,find_posts
+are there any posts on study tips for exams,find_posts
+where are the posts about photography,find_posts
+what posts do you have on finance,find_posts
+get me articles about gardening in small spaces,find_posts
+show recent posts by creators,find_posts
+browse all published articles,find_posts
+can you list posts tagged health,find_posts
+show me something about pets,find_posts
+summarize this for me,summarize_post
+tl dr pls,summarize_post
+give me a two line summary,summarize_post
+can you shorten this article,summarize_post
+what's the main message of this post,summarize_post
+condense the latest article into bullet points,summarize_post
+quick summary of the post about docker,summarize_post
+"i only have a minute, summarize it",summarize_post
+explain this article simply,summarize_post
+what's this blog trying to say,summarize_post
+recap the post on leadership,summarize_post
+key highlights of this article please,summarize_post
+summarise the newest post,summarize_post
+give me the short and sweet version,summarize_post
+break down this post in simple words,summarize_post
+iska summary chahiye,summarize_post
+ye article short mein samjhao,summarize_post
+post ka gist batao,summarize_post
+"too long didn't read, help",summarize_post
+compress this article to 3 points,summarize_post
+can you give me an overview of this post,summarize_post
+what are the important points here,summarize_post
+in a nutshell what does the post say,summarize_post
+summary of the first post,summarize_post
+summary of 'the juntleman',summarize_post
+shorter version of the travel blog please,summarize_post
+main takeaways from this article?,summarize_post
+just give me the conclusion of this post,summarize_post
+tell me briefly what this article covers,summarize_post
+sum up the latest blog,summarize_post
+write a blog about my vacation in kerala,create_post
+create a draft about time management,create_post
+i want to publish a story about my grandmother,create_post
+help me draft an article on climate action,create_post
+generate a post about the best laptops for students,create_post
+write a short post with my sunset photo,create_post
+make a blog post from this picture of my garden,create_post
+compose a casual post about weekend plans,create_post
+write a formal article about our product launch,create_post
+create a funny post about learning to drive,create_post
+draft something about my first job experience,create_post
+please write me a post on healthy snacks,create_post
+can you prepare a blog on react basics,create_post
+I need a post about festival preparations,create_post
+new blog on minimalism please,create_post
+diwali par ek post likh do,create_post
+mere trip ke baare mein blog bana do,create_post
+ek article likho healthy food par,create_post
+coding tips par post likhna hai,create_post
+write a post and use my uploaded image,create_post
+create article: 10 tips for remote teams,create_post
+turn my notes into a blog post,create_post
+write a blog post introducing myself,create_post
+draft a review post about a book I read,create_post
+make a post announcing our hackathon,create_post
+write an informative post on water conservation with a cover photo,create_post
+can u write an article for the blog about cats,create_post
+start a new post about local markets,create_post
+compose a story post about monsoon rains,create_post
+write a beginner guide post on investing,create_post
+how do i edit a draft,site_help
+why is my post still pending,site_help
+what happens when a post is rejected,site_help
+how can i resubmit after clarification,site_help
+where do i find posts sent back to me,site_help
+how do i reset my password,site_help
+can i delete a published post,site_help
+who can approve posts,site_help
+what roles are there on this blog,site_help
+how do i change my post title after submitting,site_help
+why can't i upload a png,site_help
+my image is too big what do i do,site_help
+what file types can i upload,site_help
+how long can a post title be,site_help
+how do i log in,site_help
+how do I sign out,site_help
+i am getting session expired again and again,site_help
+why was i logged out,site_help
+how to add a cover image,site_help
+how do admins review posts,site_help
+can i undo a submit,site_help
+how to see my rejected posts,site_help
+what does closed status mean,site_help
+login nahi ho raha,site_help
+password bhool gaya kya karu,site_help
+post edit kaise karu,site_help
+how do i use the summarize button,site_help
+is there a limit on content length,site_help
+can a normal user write posts,site_help
+hello there,greeting
+hi there,greeting
+heyy,greeting
+hiii bot,greeting
+good night,greeting
+gm,greeting
+gn,greeting
+hey whats going on,greeting
+sup,greeting
+hello assistant,greeting
+hi team,greeting
+thank u,greeting
+thanks buddy,greeting
+many thanks,greeting
+appreciate it,greeting
+great thanks,greeting
+ok cool thanks,greeting
+bye bye,greeting
+see ya,greeting
+talk to you later,greeting
+ttyl,greeting
+have a good day,greeting
+nice talking to you,greeting
+you are helpful,greeting
+hey good to see you,greeting
+dhanyavaad,greeting
+shukriya,greeting
+alvida,greeting
+hello hello,greeting
+"hey, how are you doing",greeting
+what is the stock price of apple,out_of_scope
+who is the richest person in the world,out_of_scope
+fix my laptop wifi,out_of_scope
+write python code to sort a list,out_of_scope
+solve this equation x squared plus 2,out_of_scope
+what's the score in the football game,out_of_scope
+find me a cheap flight to goa,out_of_scope
+recommend a phone under 20000,out_of_scope
+how do i lose weight fast,out_of_scope
+what's the date today,out_of_scope
+tell me a fun fact,out_of_scope
+sing a song,out_of_scope
+how far is the moon,out_of_scope
+make a reservation at a restaurant,out_of_scope
+remind me to drink water,out_of_scope
+whats the news today,out_of_scope
+explain quantum physics,out_of_scope
+what's trending on twitter,out_of_scope
+download this youtube video,out_of_scope
+how to make money online,out_of_scope
+qwertyuiop,out_of_scope
+hmm,out_of_scope
+???,out_of_scope
+mujhe ek joke sunao,out_of_scope
+kal ka match kaun jeetega,out_of_scope
+bijli ka bill kaise bharu,out_of_scope
+can you do my taxes,out_of_scope
+how do i fix a flat tyre,out_of_scope
+what's the best laptop to buy,out_of_scope
+who is your creator,out_of_scope
+how many posts did i write,post_report
+how many of my drafts are pending,post_report
+show my post statistics,post_report
+total posts by each status,post_report
+give me a status summary of my posts,post_report
+how many posts got approved,post_report
+count of rejected posts,post_report
+how many posts were published this month,post_report
+admin report of pending posts,post_report
+which posts are awaiting review,post_report
+what did the admin write on my rejected post,post_report
+why was my draft sent back,post_report
+show rejection reasons,post_report
+reason for clarification on my post,post_report
+mere kitne post pending hai,post_report
+kitne post publish hue,post_report
+reject kyu kiya mera article,post_report
+download report as excel,post_report
+export the status report,post_report
+give me a spreadsheet of all posts,post_report
+csv export of rejected posts,post_report
+how many posts are in draft,post_report
+number of closed posts,post_report
+post status overview,post_report

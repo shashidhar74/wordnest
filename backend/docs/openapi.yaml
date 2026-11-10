@@ -1,0 +1,827 @@
+# OpenAPI description of the blog-app backend, shown at http://localhost:3000/docs
+# Keep this in sync with routes/ and controller/ when an endpoint changes.
+openapi: 3.0.3
+info:
+  title: Blog App API
+  version: 1.0.0
+  description: |
+    Express + PostgreSQL backend for the blog.
+
+    **Auth:** call `POST /auth/login`, copy the `token`, click **Authorize** above and paste it
+    (just the token, without `Bearer `). Tokens expire after 1 hour.
+
+    **Roles:** `user` reads, `creator` writes posts, `admin` reviews them.
+
+    From the Angular app these paths are called with an `/api` prefix (the dev proxy removes it).
+servers:
+  - url: /
+    description: This server
+
+tags:
+  - name: Auth
+    description: Sign up and log in
+  - name: Posts
+    description: Create, read, update and delete posts
+  - name: Workflow
+    description: "Publishing state machine: draft → pending → published → closed"
+  - name: AI
+    description: Gemini-powered features (can be slow, 5–30 s)
+  - name: Images
+    description: Uploaded post images
+  - name: Chat
+    description: "Blog chatbot: our intent model (ai-service on :8000) + database + Gemini"
+
+paths:
+  # ---------------------------------------------------------------- Auth
+  /auth/users:
+    post:
+      tags: [Auth]
+      summary: Sign up
+      description: Creates a user. New users get the default role from the database (`user`).
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name: { type: string, example: Asha }
+                email: { type: string, format: email, example: asha@example.com }
+                password: { type: string, minLength: 6, example: secret123 }
+      responses:
+        '201':
+          description: User created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string, example: User created Sucessfully!! }
+                  data:
+                    type: object
+                    properties:
+                      id: { type: integer, example: 7 }
+                      name: { type: string, example: Asha }
+                      email: { type: string, example: asha@example.com }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Log in
+      description: Returns a JWT valid for 1 hour. Its payload is `{ userId, email, role }`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email, example: asha@example.com }
+                password: { type: string, example: secret123 }
+      responses:
+        '200':
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message: { type: string, example: Login Sucess!! }
+                  token: { type: string, example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9... }
+                  userId: { type: integer, example: 7 }
+        '401':
+          description: Wrong email or password
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  # ---------------------------------------------------------------- Posts
+  /feed/posts:
+    get:
+      tags: [Posts]
+      summary: List posts
+      description: |
+        Newest first. Public: login is **optional** and widens what you see.
+        | Caller | Sees |
+        |---|---|
+        | guest / `user` | published posts only |
+        | `creator` | published posts + their own (any status) |
+        | `admin` | all posts |
+        `status` filters within what you may see (e.g. a guest asking for `draft` gets an empty list).
+        An invalid or expired token → 401.
+      security: [{}, { bearerAuth: [] }]
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, minimum: 1, maximum: 50, default: 10 }
+        - name: search
+          in: query
+          description: Case-insensitive match on the title (1–100 characters)
+          schema: { type: string, minLength: 1, maxLength: 100 }
+        - name: status
+          in: query
+          schema: { $ref: '#/components/schemas/PostStatus' }
+      responses:
+        '200':
+          description: A page of posts
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  posts:
+                    type: array
+                    items: { $ref: '#/components/schemas/Post' }
+                  limit: { type: integer, example: 10 }
+                  total: { type: integer, example: 23 }
+                  totalPages: { type: integer, example: 3 }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+    post:
+      tags: [Posts]
+      summary: Create a post
+      description: |
+        **Creator only.** Sent as `multipart/form-data`. The post always starts as `draft`;
+        the owner is taken from the token.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [title, content, image]
+              properties:
+                title: { type: string, minLength: 5 }
+                content: { type: string, minLength: 5 }
+                image:
+                  type: string
+                  format: binary
+                  description: PNG or JPG, up to 2 MB
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PostResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422':
+          description: Invalid title/content, or the image is missing or not PNG/JPG
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '500':
+          description: Server error, also returned when the image is over 2 MB (`File too large`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+
+  /feed/posts/{postId}:
+    parameters:
+      - $ref: '#/components/parameters/PostId'
+    get:
+      tags: [Posts]
+      summary: Get one post
+      description: |
+        Public: login is **optional**. Same visibility as the list: a post you may not see (e.g. someone
+        else's draft) answers **404**, exactly like a missing one, so hidden posts can't be discovered.
+      security: [{}, { bearerAuth: [] }]
+      responses:
+        '200':
+          description: The post
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  post: { $ref: '#/components/schemas/Post' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+    put:
+      tags: [Posts]
+      summary: Update a post
+      description: |
+        **Owner only**, and only while the post is `draft` or `clarification`.
+        Send `multipart/form-data` to replace the image, or JSON to keep the current one.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [title, content]
+              properties:
+                title: { type: string, minLength: 5 }
+                content: { type: string, minLength: 5 }
+                image:
+                  type: string
+                  format: binary
+                  description: Optional new image (PNG or JPG, up to 2 MB)
+          application/json:
+            schema:
+              type: object
+              required: [title, content]
+              properties:
+                title: { type: string, minLength: 5 }
+                content: { type: string, minLength: 5 }
+      responses:
+        '200':
+          description: Updated
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PostResponse' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+    delete:
+      tags: [Posts]
+      summary: Delete a post
+      description: |
+        **Creator or admin.** Owners can delete their own `draft` or `rejected` posts;
+        admins can delete any post. The image file is deleted too.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  # ---------------------------------------------------------------- Workflow
+  /feed/posts/{postId}/submit:
+    parameters:
+      - $ref: '#/components/parameters/PostId'
+    patch:
+      tags: [Workflow]
+      summary: Submit for review (draft | clarification → pending)
+      description: '**Creator**, own post only.'
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/StatusChanged' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/WrongStatus' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /feed/posts/{postId}/send-back:
+    parameters:
+      - $ref: '#/components/parameters/PostId'
+    patch:
+      tags: [Workflow]
+      summary: Send back for clarification (pending → clarification)
+      description: '**Admin.** A comment for the creator is required.'
+      security: [{ bearerAuth: [] }]
+      requestBody: { $ref: '#/components/requestBodies/ReviewComment' }
+      responses:
+        '200': { $ref: '#/components/responses/StatusChanged' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/WrongStatus' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /feed/posts/{postId}/approve:
+    parameters:
+      - $ref: '#/components/parameters/PostId'
+    patch:
+      tags: [Workflow]
+      summary: Approve and publish (pending → published)
+      description: '**Admin.**'
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/StatusChanged' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/WrongStatus' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /feed/posts/{postId}/reject:
+    parameters:
+      - $ref: '#/components/parameters/PostId'
+    patch:
+      tags: [Workflow]
+      summary: Reject (pending → rejected)
+      description: '**Admin.** A reason is required.'
+      security: [{ bearerAuth: [] }]
+      requestBody: { $ref: '#/components/requestBodies/ReviewComment' }
+      responses:
+        '200': { $ref: '#/components/responses/StatusChanged' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/WrongStatus' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  /feed/posts/{postId}/close:
+    parameters:
+      - $ref: '#/components/parameters/PostId'
+    patch:
+      tags: [Workflow]
+      summary: Close (published → closed)
+      description: '**Owner (creator) or admin.**'
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200': { $ref: '#/components/responses/StatusChanged' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/WrongStatus' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '500': { $ref: '#/components/responses/ServerError' }
+
+  # ---------------------------------------------------------------- AI
+  /feed/posts/{postId}/summary:
+    parameters:
+      - $ref: '#/components/parameters/PostId'
+    post:
+      tags: [AI]
+      summary: Summarize a post
+      description: |
+        **Any logged-in user**, for posts they may see (same rule as `GET /feed/posts/{postId}`, else 404).
+        Summarizes the post as saved in the database (3–5 sentences).
+        Nothing is stored; each call is a new Gemini request. No request body.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  summary: { type: string, example: This post explains how to start composting at home... }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '422':
+          description: Invalid post id, or the AI could not produce an answer (e.g. safety block)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/AiBusy' }
+        '500': { $ref: '#/components/responses/AiConfig' }
+        '503': { $ref: '#/components/responses/AiUnavailable' }
+
+  /feed/ai/generate-post:
+    post:
+      tags: [AI]
+      summary: Generate a post draft
+      description: |
+        **Creator only.** Returns a title and content for the editor form. **Not saved**:
+        the creator reviews it, adds an image and creates the post with `POST /feed/posts`.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [topic]
+              properties:
+                topic: { type: string, minLength: 3, maxLength: 200, example: Getting started with home composting }
+                tone:
+                  type: string
+                  enum: [formal, casual, funny, informative]
+                  default: informative
+                keywords: { type: string, maxLength: 200, example: 'soil, kitchen scraps, beginners' }
+      responses:
+        '200':
+          description: AI draft
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  title: { type: string, example: Composting at Home - A Beginner's Guide }
+                  content: { type: string, example: Composting turns kitchen scraps into rich soil... }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422':
+          description: Invalid topic/tone/keywords, or the AI could not produce an answer
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/AiBusy' }
+        '500': { $ref: '#/components/responses/AiConfig' }
+        '502':
+          description: The AI returned invalid JSON; try again
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '503': { $ref: '#/components/responses/AiUnavailable' }
+
+  # ---------------------------------------------------------------- Chat (planned)
+  /chat:
+    post:
+      tags: [Chat]
+      summary: Send a chat message
+      description: |
+        **Any logged-in user.** Implemented in `controller/chat.js`. Needs the ai-service running
+        (`npm run dev:ai`), otherwise 503.
+
+        How it should work:
+        1. Validate `message`.
+        2. Call the Python ai-service `POST http://localhost:8000/intent` → `{ intent, confidence }`.
+           If the service is down or times out → **503**.
+        3. Build the reply by intent:
+           - `greeting` → friendly template
+           - `find_posts` → topic from "about X" / "on X" → search **published** posts (max 5) → `posts`.
+             **No topic** ("how many posts are there?", "show me all posts") → reply with the total count
+             of published posts + the latest 5. Ignore "on the blog" / "on this site" as a topic.
+           - `summarize_post` → pick the post: a quoted title, a title in the message, or "1st / latest post"
+             (= newest published). Found → `ai.summarize` → reply with the summary.
+             Not clear → ask "Which post?" with the latest 5 as `posts`, `postsAction: summarize`
+             and `awaiting: post_for_summary`.
+           - **`context.awaiting = post_for_summary`** in the request → skip the intent model; the whole
+             message is a post title → summarize it (or ask again if not found).
+           - `create_post` → creators: `action: { type: open_editor, topic }`; others: explain only creators can write
+           - `post_report` → counts or review reasons, **filtered by role in SQL** (use `req.userId` / `req.userRole`):
+             | Role | Status-wise counts (`stats`) | "Why was X rejected?" (`review_comment`) |
+             |---|---|---|
+             | user | published only | refuse: only the author or an admin |
+             | creator | own posts (`WHERE user_id = $1`) | own rejected / clarification posts |
+             | admin | all posts | any post |
+             Counts: `SELECT status, COUNT(*)::int FROM posts [WHERE user_id=$1] GROUP BY status`.
+             Reasons: `status IN ('rejected','clarification')`, optional title `ILIKE`, newest `reviewed_at` first, max 5.
+             **"download / export / csv / excel"** → same role filter, return `download` with one row per post:
+             ID, Title, Status, Created, Updated (+ Review comment for creators/admins). The browser builds the CSV.
+           - `site_help` → short FAQ answer
+           - `out_of_scope` → polite refusal
+        Stateless: each message is handled on its own (no history in v1). The only memory is
+        `awaiting`: when the bot asks a question, the frontend sends it back as `context.awaiting`.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message: { type: string, minLength: 1, maxLength: 500, example: any posts about cooking? }
+                context:
+                  type: object
+                  description: The previous reply's `awaiting`, sent back so this message is read as its answer
+                  properties:
+                    awaiting: { type: string, enum: [post_for_summary] }
+      responses:
+        '200':
+          description: Bot reply
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ChatResponse' }
+              examples:
+                findPosts:
+                  summary: find_posts
+                  value:
+                    intent: find_posts
+                    confidence: 0.41
+                    reply: 'Here are posts about "cooking":'
+                    posts: [{ id: 12, title: 'Quick weeknight dinners' }]
+                createPost:
+                  summary: create_post (creator)
+                  value:
+                    intent: create_post
+                    confidence: 0.58
+                    reply: "Let's write it! I've opened the editor with your topic."
+                    action: { type: open_editor, topic: 'diwali celebrations' }
+                countPosts:
+                  summary: find_posts without a topic
+                  value:
+                    intent: find_posts
+                    confidence: 0.91
+                    reply: 'There are 4 published posts. Here they are:'
+                    posts: [{ id: 8, title: 'The Juntleman' }, { id: 5, title: 'Hello world' }]
+                whichPost:
+                  summary: summarize_post, post not clear
+                  value:
+                    intent: summarize_post
+                    confidence: 0.73
+                    reply: 'Which post should I summarize? Click one, or type its title.'
+                    posts: [{ id: 8, title: 'The Juntleman' }]
+                    postsAction: summarize
+                    awaiting: post_for_summary
+                summary:
+                  summary: summarize_post, post found
+                  value:
+                    intent: summarize_post
+                    confidence: 1
+                    reply: "Summary of \"The Juntleman\":\n\nThe post explains how password hashes work..."
+                    posts: [{ id: 8, title: 'The Juntleman' }]
+                    postsAction: open
+                statusReport:
+                  summary: post_report, status-wise (creator)
+                  value:
+                    intent: post_report
+                    confidence: 0.88
+                    reply: 'Status report for your posts:'
+                    stats:
+                      - { label: Draft, status: draft, count: 2 }
+                      - { label: Rejected, status: rejected, count: 1 }
+                      - { label: Total, count: 3 }
+                rejectReason:
+                  summary: post_report, why rejected
+                  value:
+                    intent: post_report
+                    confidence: 0.82
+                    reply: "Here's what the reviewer said:\n\n• \"The Juntleman\": Rejected on 11/5/2026.\n  Reason: Please add sources for the claims."
+                    posts: [{ id: 8, title: 'The Juntleman' }]
+                greeting:
+                  summary: greeting
+                  value:
+                    intent: greeting
+                    confidence: 0.47
+                    reply: 'Hi! I can find posts, summarize them, or help you write one.'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '503':
+          description: The Python ai-service is not running or didn't answer in time
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+              example: { message: Chat is temporarily unavailable }
+
+  # ---------------------------------------------------------------- Images
+  /images/{file}:
+    get:
+      tags: [Images]
+      summary: Get an uploaded image
+      description: Static file. Use the post's `img_url` (e.g. `images/1712345-photo.png`) as the path.
+      security: []
+      parameters:
+        - name: file
+          in: path
+          required: true
+          schema: { type: string, example: 1712345-photo.png }
+      responses:
+        '200':
+          description: The image
+          content:
+            image/png: { schema: { type: string, format: binary } }
+            image/jpeg: { schema: { type: string, format: binary } }
+        '404':
+          description: No such file
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token from `POST /auth/login`
+
+  parameters:
+    PostId:
+      name: postId
+      in: path
+      required: true
+      schema: { type: integer, minimum: 1, example: 1 }
+
+  requestBodies:
+    ReviewComment:
+      required: true
+      content:
+        application/json:
+          schema:
+            type: object
+            required: [comment]
+            properties:
+              comment: { type: string, minLength: 1, example: Please add more detail to the second section. }
+
+  schemas:
+    PostStatus:
+      type: string
+      enum: [draft, pending, clarification, published, rejected, closed]
+
+    Post:
+      type: object
+      description: A row of the `posts` table, as returned by the database
+      properties:
+        id: { type: integer, example: 1 }
+        title: { type: string, example: My first post }
+        content: { type: string, example: 'Hello world, this is my first post.' }
+        status: { $ref: '#/components/schemas/PostStatus' }
+        author:
+          type: string
+          nullable: true
+          description: Leftover column, to be removed. The owner is `user_id`.
+        img_url: { type: string, nullable: true, example: images/1712345-photo.png }
+        user_id: { type: integer, nullable: true, example: 7 }
+        reviewed_by: { type: integer, nullable: true }
+        reviewed_at: { type: string, format: date-time, nullable: true }
+        review_comment: { type: string, nullable: true }
+        created_at: { type: string, format: date-time }
+        updated_on: { type: string, format: date-time, nullable: true }
+
+    PostResponse:
+      type: object
+      properties:
+        message: { type: string }
+        post: { $ref: '#/components/schemas/Post' }
+
+    Message:
+      type: object
+      properties:
+        message: { type: string }
+
+    ChatIntent:
+      type: string
+      enum: [find_posts, summarize_post, create_post, post_report, site_help, greeting, out_of_scope]
+
+    ChatResponse:
+      type: object
+      required: [intent, confidence, reply]
+      properties:
+        intent: { $ref: '#/components/schemas/ChatIntent' }
+        confidence:
+          type: number
+          minimum: 0
+          maximum: 1
+          description: Top probability from the intent model
+        reply:
+          type: string
+          description: Text the bot shows (plain text, may contain line breaks)
+        posts:
+          type: array
+          description: Only for find_posts (and summarize_post when asking "which post?"). Published posts only.
+          items:
+            type: object
+            required: [id, title]
+            properties:
+              id: { type: integer }
+              title: { type: string }
+        stats:
+          type: array
+          description: Only for post_report. Statuses with a count > 0, then a `Total` row (no status).
+          items:
+            type: object
+            required: [label, count]
+            properties:
+              label: { type: string, example: Pending }
+              count: { type: integer, example: 3 }
+              status: { $ref: '#/components/schemas/PostStatus' }
+        download:
+          type: object
+          description: Only for post_report "download the list". The frontend turns it into a CSV file.
+          required: [filename, columns, rows]
+          properties:
+            filename: { type: string, example: posts-2026-11-09.csv }
+            columns:
+              type: array
+              items: { type: string }
+              example: [ID, Title, Status, Created, Updated, Review comment]
+            rows:
+              type: array
+              items:
+                type: array
+                items: { nullable: true, oneOf: [{ type: string }, { type: number }] }
+              example: [[8, The Juntleman, Rejected, '2026-11-01', '2026-11-05', Please add sources.]]
+        suggestions:
+          type: array
+          maxItems: 4
+          description: |
+            Optional chips for the next step (e.g. ["Download the list as CSV"]). If missing, the frontend
+            picks follow-ups by intent and role. A chip ending in "…" is put in the input instead of being sent.
+          items: { type: string, maxLength: 60 }
+        postsAction:
+          type: string
+          enum: [open, summarize]
+          default: open
+          description: What clicking one of `posts` does. `summarize` is used under "Which post?".
+        awaiting:
+          type: string
+          enum: [post_for_summary]
+          description: The bot asked a question; the frontend sends this back as `context.awaiting` next time.
+        action:
+          type: object
+          description: Something the frontend should offer to do. Only for create_post (creators).
+          required: [type]
+          properties:
+            type: { type: string, enum: [open_editor] }
+            topic: { type: string, description: Pre-fills the editor's "Write with AI" topic }
+
+    Error:
+      type: object
+      description: |
+        Every error has `message`. Validation errors also list the failed fields, in `data`,
+        `errors` or `error` depending on the endpoint.
+      properties:
+        message: { type: string, example: Post Not Found!! }
+        data:
+          type: array
+          items: { $ref: '#/components/schemas/FieldError' }
+        errors:
+          type: array
+          items: { $ref: '#/components/schemas/FieldError' }
+        error:
+          oneOf:
+            - type: string
+            - type: array
+              items: { $ref: '#/components/schemas/FieldError' }
+
+    FieldError:
+      type: object
+      description: One failed rule from express-validator
+      properties:
+        type: { type: string, example: field }
+        msg: { type: string, example: Invalid value }
+        path: { type: string, example: title }
+        location: { type: string, example: body }
+        value: {}
+
+  responses:
+    Unauthorized:
+      description: No token, or the token is invalid or expired
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { message: Not authenticated }
+    Forbidden:
+      description: Logged in, but your role or ownership doesn't allow this
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { message: Not authorized }
+    NotFound:
+      description: Post not found
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { message: Post Not Found!! }
+    Conflict:
+      description: Conflict (duplicate email, or the post's status doesn't allow this)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    WrongStatus:
+      description: The post isn't in a status this action allows, or someone changed it at the same moment
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { message: Cannot approve a draft post }
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    ServerError:
+      description: Unexpected server or database error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    StatusChanged:
+      description: Status changed
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/PostResponse' }
+          example: { message: Post published, post: { id: 1, status: published } }
+    AiBusy:
+      description: Gemini rate limit reached
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { message: 'AI is busy, please try again in a minute' }
+    AiConfig:
+      description: Wrong Gemini API key or model name, or an unexpected error
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { message: AI service is not configured correctly }
+    AiUnavailable:
+      description: Gemini unreachable, overloaded, or timed out (60 s)
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+          example: { message: AI service is temporarily unavailable }

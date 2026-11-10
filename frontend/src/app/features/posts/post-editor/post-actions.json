@@ -1,0 +1,140 @@
+{
+  "creator": {
+    "readOnly": false,
+    "editableStatuses": ["draft", "clarification"],
+    "buttons": [
+      {
+        "label": "Cancel",
+        "functionName": "cancel",
+        "style": "outline",
+        "confirm": {
+          "title": "Discard changes?",
+          "message": "Are you sure you want to cancel? Any unsaved changes will be lost.",
+          "confirmText": "Yes, discard",
+          "cancelText": "Keep editing"
+        }
+      },
+      {
+        "label": "Delete",
+        "functionName": "delete",
+        "style": "danger",
+        "icon": "lucideTrash2",
+        "existingOnly": true,
+        "confirm": {
+          "title": "Delete post",
+          "message": "Are you sure you want to delete “{title}”? This cannot be undone.",
+          "confirmText": "Yes, delete"
+        }
+      },
+      {
+        "label": "Close",
+        "functionName": "close",
+        "style": "warning",
+        "icon": "lucideCircleX",
+        "existingOnly": true,
+        "confirm": {
+          "title": "Close post",
+          "message": "Are you sure you want to close “{title}”? No further action can be taken on it.",
+          "confirmText": "Yes, close"
+        },
+        "statuses": ["published"]
+      },
+      {
+        "label": "Save",
+        "functionName": "save",
+        "style": "success",
+        "icon": "lucideSave",
+        "confirm": {
+          "title": "Save post",
+          "message": "Are you sure you want to save “{title}”?",
+          "confirmText": "Yes, save"
+        },
+        "editableOnly": true
+      },
+      {
+        "label": "Submit",
+        "functionName": "submit",
+        "style": "primary",
+        "icon": "lucideSend",
+        "confirm": {
+          "title": "Submit for approval",
+          "message": "Are you sure you want to submit “{title}”? An admin will review it.",
+          "confirmText": "Yes, submit"
+        },
+        "editableOnly": true,
+        "statuses": ["draft", "clarification"]
+      }
+    ]
+  },
+  "admin": {
+    "readOnly": true,
+    "buttons": [
+      {
+        "label": "Send back for clarification",
+        "functionName": "sendBack",
+        "style": "warning",
+        "icon": "lucideUndo2",
+        "existingOnly": true,
+        "confirm": {
+          "title": "Send back for clarification",
+          "message": "Send “{title}” back to the creator? Tell them what needs to change.",
+          "confirmText": "Yes, send back",
+          "comment": {
+            "label": "Comment for the creator",
+            "placeholder": "e.g. Add more details about…",
+            "required": true
+          }
+        },
+        "statuses": ["pending"]
+      },
+      {
+        "label": "Reject",
+        "functionName": "reject",
+        "style": "danger",
+        "icon": "lucideX",
+        "existingOnly": true,
+        "confirm": {
+          "title": "Reject post",
+          "message": "Are you sure you want to reject “{title}”?",
+          "confirmText": "Yes, reject",
+          "comment": {
+            "label": "Reason for rejection",
+            "placeholder": "e.g. Not suitable for the blog because…",
+            "required": true
+          }
+        },
+        "statuses": ["pending"]
+      },
+      {
+        "label": "Approve",
+        "functionName": "approve",
+        "style": "success",
+        "icon": "lucideCheck",
+        "existingOnly": true,
+        "confirm": {
+          "title": "Approve post",
+          "message": "Are you sure you want to approve and publish “{title}”?",
+          "confirmText": "Yes, approve"
+        },
+        "statuses": ["pending"]
+      },
+      {
+        "label": "Close",
+        "functionName": "close",
+        "style": "warning",
+        "icon": "lucideCircleX",
+        "existingOnly": true,
+        "confirm": {
+          "title": "Close post",
+          "message": "Are you sure you want to close “{title}”? No further action can be taken on it.",
+          "confirmText": "Yes, close"
+        },
+        "statuses": ["published"]
+      }
+    ]
+  },
+  "user": {
+    "readOnly": true,
+    "buttons": []
+  }
+}

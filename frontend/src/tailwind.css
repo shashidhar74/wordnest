@@ -1,0 +1,206 @@
+/*
+ * Design system — Tailwind CSS v4 (processed by PostCSS via .postcssrc.json).
+ *
+ *  - Fonts: Inter (UI) + JetBrains Mono (ids, codes, numbers), self-hosted via @fontsource.
+ *  - Colours are CSS variables on :root / .dark and exposed to Tailwind through @theme,
+ *    so `bg-surface`, `text-fg-muted`, `border-line`, `text-brand` … work in both themes.
+ *  - Type scale is compact (13px body) to fit dense, data-heavy screens.
+ */
+@import '@fontsource-variable/inter/index.css';
+@import '@fontsource-variable/jetbrains-mono/index.css';
+/* Structural CSS for CDK overlays (dialogs, menus). Unstyled — look comes from Tailwind. */
+@import '@angular/cdk/overlay-prebuilt.css';
+@import 'tailwindcss';
+
+/* `dark:` utilities follow the `.dark` class set by ThemeService. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --canvas: #f7f8fa;
+  --surface: #ffffff;
+  --surface-2: #f8f9fb;
+  --surface-hover: #f3f5f8;
+  --line: #e4e7ec;
+  --line-strong: #d0d5dd;
+  --fg: #101828;
+  --fg-muted: #5d6879;
+  --fg-subtle: #98a2b3;
+  --brand: #1a56c4;
+  --brand-hover: #1648a6;
+  --brand-soft: #eaf1fd;
+  --brand-fg: #ffffff;
+  --ring: #1a56c4;
+  color-scheme: light;
+}
+
+.dark {
+  --canvas: #0b0f17;
+  --surface: #111722;
+  --surface-2: #151c29;
+  --surface-hover: #1a2231;
+  --line: #243044;
+  --line-strong: #33415a;
+  --fg: #e6eaf0;
+  --fg-muted: #9aa6b8;
+  --fg-subtle: #677489;
+  --brand: #6ea4ff;
+  --brand-hover: #8cb6ff;
+  --brand-soft: #16284a;
+  --brand-fg: #0b0f17;
+  --ring: #6ea4ff;
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-hover: var(--surface-hover);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-brand: var(--brand);
+  --color-brand-hover: var(--brand-hover);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-fg: var(--brand-fg);
+  --color-ring: var(--ring);
+}
+
+@theme {
+  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, 'Cascadia Mono', Consolas, monospace;
+
+  /* Compact type scale */
+  --text-2xs: 10.5px;
+  --text-2xs--line-height: 14px;
+  --text-xs: 11.5px;
+  --text-xs--line-height: 16px;
+  --text-sm: 12.5px;
+  --text-sm--line-height: 18px;
+  --text-base: 13px;
+  --text-base--line-height: 20px;
+  --text-md: 14px;
+  --text-md--line-height: 20px;
+  --text-lg: 16px;
+  --text-lg--line-height: 24px;
+  --text-xl: 18px;
+  --text-xl--line-height: 26px;
+  --text-2xl: 22px;
+  --text-2xl--line-height: 30px;
+}
+
+@layer base {
+  html,
+  body {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-canvas font-sans text-base text-fg antialiased;
+    font-feature-settings: 'cv11', 'ss01';
+  }
+
+  /* Numbers line up in tables and amounts. */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-1 outline-ring;
+  }
+
+  ::selection {
+    @apply bg-brand-soft;
+  }
+}
+
+@layer components {
+  /* Buttons */
+  .btn {
+    @apply inline-flex h-7 shrink-0 items-center justify-center gap-1.5 rounded-md px-2.5 text-sm font-medium whitespace-nowrap transition-colors select-none disabled:pointer-events-none disabled:opacity-50;
+  }
+  .btn-primary {
+    @apply bg-brand text-brand-fg hover:bg-brand-hover;
+  }
+  .btn-outline {
+    @apply border border-line bg-surface text-fg hover:bg-surface-hover;
+  }
+  .btn-ghost {
+    @apply text-fg-muted hover:bg-surface-hover hover:text-fg;
+  }
+  .btn-danger {
+    @apply bg-red-600 text-white hover:bg-red-700;
+  }
+  .btn-success {
+    @apply bg-emerald-600 text-white hover:bg-emerald-700;
+  }
+  .btn-warning {
+    @apply bg-amber-500 text-white hover:bg-amber-600;
+  }
+  .btn-icon {
+    @apply inline-flex size-7 shrink-0 items-center justify-center rounded-md text-fg-muted transition-colors hover:bg-surface-hover hover:text-fg;
+  }
+  .btn-lg {
+    @apply h-9 px-4 text-base;
+  }
+
+  /* Form controls */
+  .input {
+    @apply h-8 w-full rounded-md border border-line bg-surface px-2.5 text-base text-fg transition-colors placeholder:text-fg-subtle hover:border-line-strong focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/15;
+  }
+  .input-invalid {
+    @apply border-red-500 focus:border-red-500 focus:ring-red-500/15;
+  }
+  .label {
+    @apply mb-1 block text-sm font-medium text-fg;
+  }
+  .field-error {
+    @apply mt-1 text-xs text-red-600 dark:text-red-400;
+  }
+  .checkbox {
+    @apply size-3.5 cursor-pointer rounded-[3px] border-line-strong accent-brand;
+  }
+
+  /* Dropdown menu row (CDK menu) */
+  .menu-item {
+    @apply flex h-8 w-full items-center gap-2 px-3 text-left text-sm text-fg outline-none hover:bg-surface-hover focus:bg-surface-hover;
+  }
+
+  /* Surfaces */
+  .card {
+    @apply rounded-lg border border-line bg-surface;
+  }
+  .section-label {
+    @apply px-3 text-2xs font-semibold tracking-[0.08em] text-fg-subtle uppercase;
+  }
+  .kbd {
+    @apply inline-flex h-4.5 items-center rounded border border-line px-1 font-mono text-2xs text-fg-muted;
+  }
+
+  /* Status pill: combine with a tone class below */
+  .pill {
+    @apply inline-flex h-5 items-center rounded-full px-2 text-xs font-medium;
+  }
+  .tone-green {
+    @apply bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200 ring-inset dark:bg-emerald-500/10 dark:text-emerald-300 dark:ring-emerald-500/30;
+  }
+  .tone-gray {
+    @apply bg-surface-2 text-fg-muted ring-1 ring-line ring-inset;
+  }
+  .tone-amber {
+    @apply bg-amber-50 text-amber-700 ring-1 ring-amber-200 ring-inset dark:bg-amber-500/10 dark:text-amber-300 dark:ring-amber-500/30;
+  }
+  .tone-red {
+    @apply bg-red-50 text-red-700 ring-1 ring-red-200 ring-inset dark:bg-red-500/10 dark:text-red-300 dark:ring-red-500/30;
+  }
+  .tone-blue {
+    @apply bg-blue-50 text-blue-700 ring-1 ring-blue-200 ring-inset dark:bg-blue-500/10 dark:text-blue-300 dark:ring-blue-500/30;
+  }
+}
+
+/* Dialog backdrop, passed to CDK Dialog as backdropClass. */
+.app-backdrop {
+  @apply bg-slate-900/40;
+}

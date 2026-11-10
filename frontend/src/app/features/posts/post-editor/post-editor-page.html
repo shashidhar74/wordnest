@@ -1,0 +1,264 @@
+<a routerLink="/posts" class="btn btn-ghost mb-2 -ml-2">
+  <ng-icon name="lucideArrowLeft" size="14" />
+  Posts
+</a>
+
+<form [formGroup]="form" (ngSubmit)="save()" class="max-w-3xl" novalidate>
+  <header class="mb-4 flex flex-wrap items-center justify-between gap-3">
+    <div class="flex items-center gap-2.5">
+      <h1 class="text-2xl font-semibold tracking-tight">
+        {{ !id() ? 'New post' : readOnly() ? 'View post' : 'Edit post' }}
+      </h1>
+      @if (post(); as p) {
+        <app-status-pill [status]="p.status" />
+      }
+    </div>
+
+    <!-- Buttons come from post-actions.json for the signed-in user's role. -->
+    <div class="flex flex-wrap gap-2">
+      @for (button of buttons(); track button.functionName) {
+        <button
+          type="button"
+          [class]="buttonClass(button)"
+          [disabled]="busy()"
+          (click)="trigger(button)"
+        >
+          @if (button.icon) {
+            <ng-icon [name]="button.icon" size="14" />
+          }
+          {{ button.label }}
+        </button>
+      }
+    </div>
+  </header>
+
+  @if (readOnly()) {
+    <p class="mb-3 flex items-center gap-1.5 text-sm text-fg-muted">
+      <ng-icon name="lucideLock" size="13" />
+      @if (lockedByStatus()) {
+        Read-only — this post is {{ statusLabel() }} and can only be edited while it's a Draft or
+        Clarification.
+      } @else {
+        Read-only{{ isAdmin() ? ' — review the post and choose an action above.' : '' }}
+      }
+    </p>
+  }
+
+  @if (post(); as p) {
+    <app-review-note [post]="p" class="mb-3 block" />
+    <!-- Summarizes the saved version of the post (any signed-in role). -->
+    <app-ai-summary [postId]="p.id" class="mb-3 block" />
+  }
+
+  <!-- AI draft: creators only, while the post is editable. Has its own form, so it never submits the post. -->
+  @if (canGenerate()) {
+    @if (!aiOpen()) {
+      <button type="button" class="btn btn-outline mb-3" (click)="aiOpen.set(true)">
+        <ng-icon name="lucideSparkles" size="14" class="text-brand" />
+        Write with AI
+      </button>
+    } @else {
+      <section
+        class="card mb-3 space-y-3 border-brand/30 p-4"
+        aria-labelledby="ai-draft-heading"
+        [formGroup]="aiForm"
+      >
+        <div class="flex items-center gap-1.5">
+          <ng-icon name="lucideSparkles" size="15" class="text-brand" />
+          <h2 id="ai-draft-heading" class="text-sm font-semibold">Write with AI</h2>
+          <button
+            type="button"
+            class="btn-icon ml-auto -mr-1.5"
+            aria-label="Close AI panel"
+            [disabled]="aiBusy()"
+            (click)="aiOpen.set(false)"
+          >
+            <ng-icon name="lucideX" size="14" />
+          </button>
+        </div>
+
+        @let topic = aiForm.controls.topic;
+        <div>
+          <label class="label" for="ai-topic">Topic</label>
+          <input
+            id="ai-topic"
+            class="input"
+            [class.input-invalid]="topic.invalid && topic.touched"
+            formControlName="topic"
+            placeholder="e.g. Getting started with home composting"
+            maxlength="200"
+            (keydown.enter)="$event.preventDefault(); generateDraft()"
+          />
+          @if (topic.touched && topic.invalid) {
+            <p class="field-error">Topic must be 3 to 200 characters</p>
+          }
+        </div>
+
+        <div class="grid gap-3 sm:grid-cols-[10rem_1fr]">
+          <div>
+            <label class="label" for="ai-tone">Tone</label>
+            <select id="ai-tone" class="input capitalize" formControlName="tone">
+              @for (tone of aiTones; track tone) {
+                <option [value]="tone">{{ tone }}</option>
+              }
+            </select>
+          </div>
+          <div>
+            <label class="label" for="ai-keywords">
+              Keywords <span class="font-normal text-fg-muted">(optional)</span>
+            </label>
+            <input
+              id="ai-keywords"
+              class="input"
+              formControlName="keywords"
+              placeholder="e.g. soil, kitchen scraps, beginners"
+              maxlength="200"
+              (keydown.enter)="$event.preventDefault(); generateDraft()"
+            />
+          </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            class="btn btn-primary"
+            [disabled]="aiBusy()"
+            (click)="generateDraft()"
+          >
+            <ng-icon
+              [name]="aiBusy() ? 'lucideLoaderCircle' : 'lucideSparkles'"
+              size="14"
+              [class.animate-spin]="aiBusy()"
+            />
+            {{ aiBusy() ? 'Writing…' : 'Generate draft' }}
+          </button>
+          <p class="text-xs text-fg-muted">
+            Fills the title and content below. Nothing is saved until you click Save.
+          </p>
+        </div>
+      </section>
+    }
+  }
+
+  <div class="card space-y-4 p-4">
+    @let title = form.controls.title;
+    <div>
+      <label class="label" for="title">Title</label>
+      <input
+        id="title"
+        class="input h-9 text-md font-medium disabled:bg-surface-2 disabled:text-fg"
+        [class.input-invalid]="title.invalid && title.touched"
+        formControlName="title"
+        placeholder="Post title"
+        appAutofocus
+        [appCharCount]="5"
+      />
+      @if (title.touched && title.hasError('required')) {
+        <p class="field-error">Title is required</p>
+      }
+    </div>
+
+    @let content = form.controls.content;
+    <div>
+      <label class="label" for="content">Content</label>
+      <textarea
+        id="content"
+        rows="14"
+        class="input h-auto py-2 leading-relaxed disabled:bg-surface-2 disabled:text-fg"
+        [class.input-invalid]="content.invalid && content.touched"
+        formControlName="content"
+        placeholder="Write your post…"
+      ></textarea>
+      @if (content.touched && content.hasError('required')) {
+        <p class="field-error">Content is required</p>
+      }
+    </div>
+
+    <!-- Image: required when creating, optional when editing (keeps the current one). -->
+    <div>
+      <span class="label">
+        Image
+        @if (id() && !readOnly()) {
+          <span class="font-normal text-fg-muted">(optional — keeps the current image)</span>
+        }
+      </span>
+
+      @if (readOnly()) {
+        @if (previewUrl(); as src) {
+          <img
+            [src]="src"
+            alt="Post image"
+            class="h-40 max-w-full rounded-md border border-line object-cover"
+          />
+        } @else {
+          <p class="text-sm text-fg-muted">No image</p>
+        }
+      } @else {
+        <input
+          #fileInput
+          type="file"
+          class="sr-only"
+          [accept]="acceptTypes"
+          (change)="onImageSelected(fileInput)"
+        />
+
+        @if (previewUrl(); as src) {
+          <div class="flex flex-wrap items-end gap-3">
+            <img
+              [src]="src"
+              alt="Post image preview"
+              class="h-40 max-w-full rounded-md border border-line object-cover"
+            />
+            <div class="flex gap-2">
+              <button type="button" class="btn btn-outline" (click)="fileInput.click()">
+                <ng-icon name="lucideUpload" size="14" />
+                {{ imageFile() ? 'Choose another' : 'Replace' }}
+              </button>
+              @if (imageFile()) {
+                <button type="button" class="btn btn-ghost" (click)="clearImage()">
+                  <ng-icon name="lucideRotateCcw" size="14" />
+                  {{ id() ? 'Keep current image' : 'Remove' }}
+                </button>
+              }
+            </div>
+          </div>
+          @if (imageFile(); as f) {
+            <p class="mt-1 text-xs text-fg-muted">
+              {{ f.name }} · {{ (f.size / 1024).toFixed(0) }} KB
+            </p>
+          }
+        } @else {
+          <button
+            type="button"
+            class="flex w-full flex-col items-center gap-1.5 rounded-md border border-dashed py-6 text-fg-muted transition-colors hover:border-brand hover:text-brand"
+            [class.border-line-strong]="!imageError()"
+            [class.border-red-500]="imageError()"
+            (click)="fileInput.click()"
+          >
+            <ng-icon name="lucideImage" size="22" />
+            <span class="text-sm font-medium">Click to choose an image</span>
+            <span class="text-xs">PNG or JPG, up to 2 MB</span>
+          </button>
+        }
+
+        @if (imageError(); as err) {
+          <p class="field-error">{{ err }}</p>
+        }
+      }
+    </div>
+
+    @if (post(); as p) {
+      <p class="border-t border-line pt-3 text-xs text-fg-muted">
+        By {{ p.author.name }} · created {{ p.createdAt | date: 'MMM d, y' }} · updated
+        {{ p.updatedAt | date: 'MMM d, y, h:mm a' }}
+      </p>
+    }
+  </div>
+</form>
+
+<!-- Comments: saved posts only (outside the form, so its buttons never submit the post) -->
+@if (post(); as p) {
+  <div class="card mt-4 max-w-3xl p-4">
+    <app-post-comments [post]="p" />
+  </div>
+}

@@ -1,0 +1,11 @@
+{
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=827846
+  "recommendations": [
+    "angular.ng-template",
+    "bradlc.vscode-tailwindcss",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint"
+  ],
+  // Nx Console offers to convert this workspace to Nx; it is intentionally not used here.
+  "unwantedRecommendations": ["nrwl.angular-console"]
+}

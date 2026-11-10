@@ -1,0 +1,90 @@
+/**
+ * Blog chatbot — matches `POST /chat` in backend/docs/openapi.yaml (ChatResponse).
+ * Intents come from the trained model in ai-service (models/intent_tfidf_lr.joblib).
+ */
+import { PostStatus } from './post.model';
+
+export type ChatIntent =
+  | 'find_posts'
+  | 'summarize_post'
+  | 'create_post'
+  | 'post_report'
+  | 'site_help'
+  | 'greeting'
+  | 'out_of_scope';
+
+/** One row of a post_report table, e.g. { status: 'pending', label: 'Pending', count: 3 }. */
+export interface ChatStatRow {
+  label: string;
+  count: number;
+  /** Shown as a status pill when set; the "Total" row has none. */
+  status?: PostStatus;
+}
+
+/** What the bot asked for in its last reply, e.g. "Which post?" → the next message is a post title. */
+export type ChatAwaiting = 'post_for_summary';
+
+export interface ChatRequest {
+  /** 1–500 characters. */
+  message: string;
+  /** Sent back from the previous reply's `awaiting`, so a follow-up answer keeps its meaning. */
+  context?: { awaiting?: ChatAwaiting };
+}
+
+export interface ChatPostLink {
+  id: number | string;
+  title: string;
+}
+
+/** A table the panel offers as a CSV download (post_report: "download the list with status"). */
+export interface ChatDownload {
+  /** e.g. "posts-2026-11-09.csv" */
+  filename: string;
+  columns: string[];
+  rows: (string | number | null)[][];
+}
+
+/** Something the panel offers to do for the user. v1: open the editor with a topic. */
+export interface ChatAction {
+  type: 'open_editor';
+  topic?: string;
+}
+
+export interface ChatResponse {
+  intent: ChatIntent;
+  /** Top probability from the intent model, 0–1. */
+  confidence: number;
+  reply: string;
+  posts?: ChatPostLink[];
+  /** What clicking a post does: open it (default) or summarize it. */
+  postsAction?: 'open' | 'summarize';
+  /** post_report: counts per status (only the statuses the user may see). */
+  stats?: ChatStatRow[];
+  /** post_report: rows for a "Download CSV" button (same role rules as `stats`). */
+  download?: ChatDownload;
+  action?: ChatAction;
+  /** Optional chips for the next step. If missing, the panel picks follow-ups by intent and role. */
+  suggestions?: string[];
+  /** The bot asked a question; the panel sends this back as `context.awaiting` with the next message. */
+  awaiting?: ChatAwaiting;
+}
+
+/** One bubble in the chat panel (UI only, never sent to the backend). */
+export interface ChatMessage {
+  id: number;
+  from: 'user' | 'bot';
+  text: string;
+  /** Bot replies only. */
+  intent?: ChatIntent;
+  confidence?: number;
+  posts?: ChatPostLink[];
+  postsAction?: 'open' | 'summarize';
+  stats?: ChatStatRow[];
+  download?: ChatDownload;
+  action?: ChatAction;
+  suggestions?: string[];
+  /** Request failed — show the text in an error style. */
+  failed?: boolean;
+}
+
+export const CHAT_MESSAGE_MAX = 500;

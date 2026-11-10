@@ -1,0 +1,16 @@
+.venv/
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+.ipynb_checkpoints/
+
+# downloaded models are large — keep them out of git; our own small trained models (*.joblib, ~150 KB)
+# ARE committed, because the deployed service needs them
+models/*
+!models/.gitkeep
+!models/*.joblib
+
+# raw datasets
+data/raw/*
+!data/raw/.gitkeep

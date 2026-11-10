@@ -1,0 +1,123 @@
+<div class="flex h-screen flex-col">
+  <!-- Top bar -->
+  <header class="z-30 flex h-12 shrink-0 items-center gap-3 border-b border-line bg-surface px-3">
+    <button
+      class="btn-icon"
+      aria-label="Toggle navigation"
+      (click)="sidebarOpen.set(!sidebarOpen())"
+    >
+      <ng-icon name="lucideMenu" size="17" />
+    </button>
+
+    <!-- Logo: name on top, byline underneath (fits the 48px top bar) -->
+    <a routerLink="/" class="flex flex-col leading-none" [attr.aria-label]="appName + ' home'">
+      <span class="text-lg leading-tight font-extrabold tracking-tight text-brand">{{
+        appName
+      }}</span>
+      <span class="text-2xs font-medium text-fg-muted">{{ appByline }}</span>
+    </a>
+
+    <!-- Search pill -->
+    <div class="mx-auto hidden w-full max-w-md md:block">
+      <label
+        class="flex h-8 items-center gap-2 rounded-full border border-line bg-surface pr-1.5 pl-3 transition-colors focus-within:border-brand focus-within:ring-2 focus-within:ring-brand/15 hover:border-line-strong"
+      >
+        <ng-icon name="lucideSearch" size="14" class="text-fg-subtle" />
+        <input
+          #searchBox
+          class="min-w-0 flex-1 bg-transparent text-sm placeholder:text-fg-subtle focus:outline-none"
+          placeholder="Search posts…"
+          aria-label="Search posts"
+          (keydown.enter)="search(searchBox)"
+          (keydown.escape)="searchBox.blur()"
+        />
+        <kbd class="kbd">{{ isMac ? '⌘' : 'Ctrl' }} K</kbd>
+      </label>
+    </div>
+
+    <div class="ml-auto md:ml-0">
+      <button
+        class="flex h-9 items-center gap-2 rounded-full border border-line py-1 pr-2 pl-1 hover:bg-surface-hover"
+        [cdkMenuTriggerFor]="userMenu"
+      >
+        <app-avatar [name]="auth.currentUser()?.name ?? '?'" [size]="26" />
+        <span class="hidden text-left leading-tight sm:block">
+          <span class="block text-sm font-medium">{{ auth.currentUser()?.name }}</span>
+          @if (auth.currentUser()?.role; as role) {
+            <span class="block text-2xs text-fg-muted capitalize">{{ role }}</span>
+          }
+        </span>
+        <ng-icon name="lucideChevronDown" size="14" class="text-fg-muted" />
+      </button>
+
+      <ng-template #userMenu>
+        <div cdkMenu class="card mt-1 w-56 py-1 shadow-lg">
+          <div class="border-b border-line px-3 py-2">
+            <p class="flex items-center justify-between gap-2 text-sm font-medium">
+              <span class="truncate">{{ auth.currentUser()?.name }}</span>
+              @if (auth.currentUser()?.role; as role) {
+                <span class="pill tone-gray capitalize">{{ role }}</span>
+              }
+            </p>
+            <p class="truncate text-xs text-fg-muted">{{ auth.currentUser()?.email }}</p>
+          </div>
+          <button cdkMenuItem class="menu-item" (cdkMenuItemTriggered)="theme.toggle()">
+            <ng-icon [name]="theme.theme() === 'dark' ? 'lucideSun' : 'lucideMoon'" size="14" />
+            {{ theme.theme() === 'dark' ? 'Light mode' : 'Dark mode' }}
+          </button>
+          <button cdkMenuItem class="menu-item" (cdkMenuItemTriggered)="auth.logout()">
+            <ng-icon name="lucideLogOut" size="14" />
+            Sign out
+          </button>
+        </div>
+      </ng-template>
+    </div>
+  </header>
+
+  <div class="relative flex min-h-0 flex-1">
+    <!-- Sidebar -->
+    @if (sidebarOpen()) {
+      @if (isCompact()) {
+        <button
+          class="fixed inset-0 top-12 z-10 bg-slate-900/30"
+          aria-label="Close navigation"
+          (click)="sidebarOpen.set(false)"
+        ></button>
+      }
+      <nav
+        class="z-20 w-56 shrink-0 overflow-y-auto border-r border-line bg-surface px-2 py-4"
+        [class.absolute]="isCompact()"
+        [class.inset-y-0]="isCompact()"
+        [class.shadow-xl]="isCompact()"
+        aria-label="Main"
+      >
+        <h2 class="section-label">Blog</h2>
+        <ul class="mt-1.5 space-y-px">
+          @for (item of nav(); track item.route) {
+            <li>
+              <a
+                [routerLink]="item.route"
+                routerLinkActive="bg-brand-soft !text-brand font-medium"
+                [routerLinkActiveOptions]="{ exact: !!item.exact }"
+                class="flex h-8 items-center gap-2.5 rounded-md px-3 text-md text-fg hover:bg-surface-hover"
+              >
+                <ng-icon [name]="item.icon" size="16" />
+                {{ item.label }}
+              </a>
+            </li>
+          }
+        </ul>
+      </nav>
+    }
+
+    <!-- Content. `relative` keeps absolutely-positioned children (e.g. sr-only) inside the scroll area. -->
+    <main class="relative min-w-0 flex-1 overflow-y-auto">
+      <div class="mx-auto max-w-[1200px] px-4 py-5 lg:px-6">
+        <router-outlet />
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Floating chat assistant (POST /chat). Here so the conversation survives navigation. -->
+<app-chat-panel />

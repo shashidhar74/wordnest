@@ -1,0 +1,99 @@
+<div class="card p-6 shadow-sm">
+  <h1 class="text-lg font-semibold">Sign in</h1>
+  <p class="mt-0.5 text-fg-muted">Use your account to continue</p>
+
+  <form [formGroup]="form" (ngSubmit)="submit()" class="mt-5 space-y-3.5" novalidate>
+    @let email = form.controls.email;
+    <div>
+      <label class="label" for="email">Email</label>
+      <div class="relative">
+        <ng-icon
+          name="lucideMail"
+          size="14"
+          class="absolute top-1/2 left-2.5 -translate-y-1/2 text-fg-subtle"
+        />
+        <input
+          id="email"
+          type="email"
+          class="input pl-8"
+          [class.input-invalid]="email.invalid && email.touched"
+          formControlName="email"
+          autocomplete="email"
+          placeholder="you@company.com"
+        />
+      </div>
+      @if (email.touched && email.hasError('required')) {
+        <p class="field-error">Email is required</p>
+      } @else if (email.touched && email.hasError('email')) {
+        <p class="field-error">Enter a valid email</p>
+      }
+    </div>
+
+    @let password = form.controls.password;
+    <div>
+      <label class="label" for="password">Password</label>
+      <div class="relative">
+        <ng-icon
+          name="lucideLock"
+          size="14"
+          class="absolute top-1/2 left-2.5 -translate-y-1/2 text-fg-subtle"
+        />
+        <input
+          id="password"
+          class="input pr-9 pl-8"
+          [class.input-invalid]="password.invalid && password.touched"
+          [type]="hidePassword() ? 'password' : 'text'"
+          formControlName="password"
+          autocomplete="current-password"
+        />
+        <button
+          type="button"
+          class="btn-icon absolute top-1/2 right-0.5 size-7 -translate-y-1/2"
+          [attr.aria-label]="hidePassword() ? 'Show password' : 'Hide password'"
+          (click)="hidePassword.set(!hidePassword())"
+        >
+          <ng-icon [name]="hidePassword() ? 'lucideEye' : 'lucideEyeOff'" size="14" />
+        </button>
+      </div>
+      @if (password.touched && password.hasError('required')) {
+        <p class="field-error">Password is required</p>
+      } @else if (password.touched && password.hasError('minlength')) {
+        <p class="field-error">At least 6 characters</p>
+      }
+    </div>
+
+    <button type="submit" class="btn btn-primary btn-lg w-full" [disabled]="submitting()">
+      {{ submitting() ? 'Signing in…' : 'Sign in' }}
+    </button>
+  </form>
+
+  <p class="mt-5 text-center text-sm text-fg-muted">
+    Don't have an account?
+    <a routerLink="/auth/signup" class="font-medium text-brand hover:underline">Sign up</a>
+  </p>
+
+  @if (mockAuth) {
+    <div class="mt-5 rounded-md border border-dashed border-line-strong bg-surface-2 p-3 text-xs">
+      <p class="mb-1.5 flex items-center gap-1.5 font-medium text-fg">
+        <ng-icon name="lucideInfo" size="12" class="text-brand" />
+        Demo accounts (mock login)
+      </p>
+      <div class="flex flex-wrap gap-1.5">
+        <button
+          type="button"
+          class="btn btn-outline h-6 text-xs"
+          (click)="fillDemo('admin@example.com', 'admin123')"
+        >
+          admin&#64;example.com
+        </button>
+        <button
+          type="button"
+          class="btn btn-outline h-6 text-xs"
+          (click)="fillDemo('user@example.com', 'user123')"
+        >
+          user&#64;example.com
+        </button>
+      </div>
+    </div>
+  }
+</div>

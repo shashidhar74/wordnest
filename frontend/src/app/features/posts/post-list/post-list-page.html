@@ -1,0 +1,121 @@
+<app-page-header title="Posts" [subtitle]="total() + ' posts'">
+  @if (isCreator()) {
+    <a routerLink="/posts/new" class="btn btn-primary">
+      <ng-icon name="lucidePlus" size="14" />
+      New post
+    </a>
+  }
+</app-page-header>
+
+<!-- Filters -->
+<div class="mb-3 flex flex-wrap items-center gap-2">
+  <div class="card flex p-0.5" role="tablist" aria-label="Filter by status">
+    @for (f of filters; track f.label) {
+      @let active = status() === f.value;
+      <button
+        role="tab"
+        class="h-7 rounded-md px-3 text-sm font-medium transition-colors"
+        [class]="active ? 'bg-brand-soft text-brand' : 'text-fg-muted hover:text-fg'"
+        [attr.aria-selected]="active"
+        (click)="setStatus(f.value)"
+      >
+        {{ f.label }}
+      </button>
+    }
+  </div>
+
+  <div class="relative ml-auto w-full sm:w-72">
+    <ng-icon
+      name="lucideSearch"
+      size="14"
+      class="absolute top-1/2 left-2.5 -translate-y-1/2 text-fg-subtle"
+    />
+    <input
+      class="input pl-8"
+      placeholder="Search by title…"
+      aria-label="Search posts"
+      [value]="searchText()"
+      (input)="onSearch($any($event.target).value)"
+    />
+  </div>
+</div>
+
+<!-- Table -->
+<div class="card overflow-hidden">
+  <div class="overflow-x-auto">
+    <table class="w-full min-w-[640px] text-left text-sm">
+      <thead
+        class="border-b border-line bg-surface-2 text-2xs font-semibold tracking-[0.06em] text-fg-muted uppercase"
+      >
+        <tr class="h-8">
+          <th class="pl-4">Title</th>
+          <th class="px-2">Author</th>
+          <th class="px-2">Status</th>
+          <th class="px-2">Created</th>
+          <th class="px-2">Updated</th>
+          <th class="w-20"><span class="sr-only">Actions</span></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-line">
+        @for (post of rows(); track post.id) {
+          <tr class="group h-10 transition-colors hover:bg-surface-hover">
+            <td class="max-w-[420px] pl-4">
+              <a
+                [routerLink]="['/posts', post.id]"
+                class="block truncate font-medium hover:text-brand"
+                [title]="post.title"
+                >{{ post.title }}</a
+              >
+            </td>
+            <td class="px-2 whitespace-nowrap">
+              <span class="flex items-center gap-2">
+                <app-avatar [name]="post.author.name" [size]="20" shape="square" />
+                {{ post.author.name }}
+              </span>
+            </td>
+            <td class="px-2"><app-status-pill [status]="post.status" /></td>
+            <td class="px-2 whitespace-nowrap tabular">{{ post.createdAt | date: 'MMM d, y' }}</td>
+            <td class="px-2 whitespace-nowrap text-fg-muted tabular">
+              {{ post.updatedAt | date: 'MMM d, y' }}
+            </td>
+            <td class="pr-2">
+              <span
+                class="flex justify-end opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
+              >
+                <button class="btn-icon size-6" aria-label="View" (click)="postView.open(post.id)">
+                  <ng-icon name="lucideEye" size="13" />
+                </button>
+                <!-- Role-based: creators edit/delete, admins review, users only view. -->
+                @if (isCreator()) {
+                  <a class="btn-icon size-6" [routerLink]="['/posts', post.id]" aria-label="Edit">
+                    <ng-icon name="lucidePencil" size="13" />
+                  </a>
+                  <button
+                    class="btn-icon size-6 hover:!text-red-600"
+                    aria-label="Delete"
+                    (click)="remove(post)"
+                  >
+                    <ng-icon name="lucideTrash2" size="13" />
+                  </button>
+                } @else if (isAdmin()) {
+                  <a class="btn-icon size-6" [routerLink]="['/posts', post.id]" aria-label="Review">
+                    <ng-icon name="lucideCircleCheck" size="13" />
+                  </a>
+                }
+              </span>
+            </td>
+          </tr>
+        } @empty {
+          <tr>
+            <td colspan="6" class="py-12 text-center text-fg-muted">
+              {{ loading() ? 'Loading posts…' : 'No posts found.' }}
+            </td>
+          </tr>
+        }
+      </tbody>
+    </table>
+  </div>
+  <div class="border-t border-line">
+    <app-paginator [total]="total()" [page]="page()" [limit]="limit()" (changed)="onPage($event)" />
+  </div>
+</div>

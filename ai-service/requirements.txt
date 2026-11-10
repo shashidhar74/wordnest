@@ -1,0 +1,26 @@
+# Python AI service for blog-app (CPU only; this machine has no NVIDIA GPU).
+# Install: see README.md (torch comes from the CPU index, it's much smaller).
+
+# --- API ---
+fastapi
+uvicorn[standard]
+python-dotenv
+
+# --- Classic ML / NLP ---
+numpy
+pandas
+scikit-learn
+nltk
+
+# --- Deep learning (CPU) ---
+torch
+transformers
+sentence-transformers
+
+# --- Database (read posts from the blog's PostgreSQL) ---
+psycopg[binary]
+
+# --- Dev ---
+pytest
+httpx
+jupyter
