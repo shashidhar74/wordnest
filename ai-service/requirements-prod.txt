@@ -1,0 +1,22 @@
+# Production dependencies: only what app/ imports to SERVE the intent model.
+# (requirements.txt is the full dev/training set: notebooks, PyTorch, transformers … over 1 GB.)
+#
+# Versions are PINNED to the ones that trained models/intent_tfidf_lr.joblib (2026-11-10).
+# A joblib/pickle model must be loaded with the same scikit-learn (and numpy) it was saved with;
+# a different version can fail to load or behave differently. When you retrain with newer
+# versions, update these pins in the same commit.
+#
+# Install:  pip install -r requirements-prod.txt
+# Run:      uvicorn app.main:app --host 0.0.0.0 --port $PORT
+
+# --- API ---
+fastapi==0.162.1
+uvicorn==0.54.0
+pydantic==2.14.3
+python-dotenv==1.2.4
+
+# --- the model ---
+scikit-learn==1.9.1
+numpy==2.5.4
+scipy==1.18.1
+joblib==1.6.0

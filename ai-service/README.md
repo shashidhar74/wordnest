@@ -46,6 +46,21 @@ uvicorn app.main:app --reload --port 8000
 
 Tests: `pytest`
 
+## Deploy (e.g. Render web service)
+
+| Setting | Value |
+|---|---|
+| Root directory | `ai-service` |
+| Python version | `3.13` (from `.python-version`) |
+| Build command | `pip install -r requirements-prod.txt` |
+| Start command | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
+
+- `requirements-prod.txt` has only what the service imports (~255 MB installed vs ~1.3 GB for the
+  full dev set). Its versions are **pinned to the ones that trained the model**: update them together
+  when you retrain.
+- The model file `models/intent_tfidf_lr.joblib` is committed to git, so the server has it.
+- No environment variables are needed. The backend points to this service with `AI_SERVICE_URL`.
+
 ## Roadmap
 
 1. [x] Service skeleton + `/health`
