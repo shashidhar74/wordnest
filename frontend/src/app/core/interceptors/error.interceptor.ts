@@ -1,4 +1,4 @@
-import { HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
+import { HttpContextToken, HttpErrorResponse, HttpInterceptorFn } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
@@ -6,6 +6,12 @@ import { API_ENDPOINTS } from '../config/api.config';
 import { ApiError } from '../models';
 import { AuthService } from '../services/auth.service';
 import { NotificationService } from '../services/notification.service';
+
+/**
+ * Set on a request to skip the error toast, for background calls the user never asked for
+ * (e.g. waking the AI service). Usage: `{ context: new HttpContext().set(SILENT_ERRORS, true) }`.
+ */
+export const SILENT_ERRORS = new HttpContextToken<boolean>(() => false);
 
 /**
  * Normalises backend errors into `ApiError`, shows a snackbar, and signs the
@@ -35,8 +41,8 @@ export const errorInterceptor: HttpInterceptorFn = (req, next) => {
         }
       }
 
-      // The silent session-restore call on startup should not raise a toast.
-      if (!isSessionCheck) notify.error(apiError.message);
+      // The silent session-restore call on startup and background calls should not raise a toast.
+      if (!isSessionCheck && !req.context.get(SILENT_ERRORS)) notify.error(apiError.message);
 
       return throwError(() => apiError);
     }),

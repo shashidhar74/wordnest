@@ -645,6 +645,24 @@ paths:
         '422': { $ref: '#/components/responses/ValidationError' }
         '429': { $ref: '#/components/responses/AiBusy' }
 
+  /chat/warm:
+    post:
+      tags: [Chat]
+      summary: Wake the AI service
+      description: |
+        **Any logged-in user.** On Render's free plan the AI service sleeps when unused and needs ~50 s to
+        start. The frontend calls this when the app opens (and when the chat is opened), so the service is
+        usually awake before the first chat message. Answers at once; the backend pings the AI service in the
+        background, at most once a minute. No request body.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '202':
+          description: Wake-up started
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+
   # ---------------------------------------------------------------- Images
   /images/{file}:
     get:

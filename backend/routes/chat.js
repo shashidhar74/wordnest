@@ -15,4 +15,9 @@ router.post('/', isAuth, aiLimiter, [
     body('context.draft.tone').optional().isIn(['informative', 'casual', 'formal', 'funny']).withMessage('Invalid draft tone')
 ], chatController.chat);
 
+// POST /chat/warm — wake the AI service in the background (it sleeps on Render's free plan and needs
+// ~50 s to start). The frontend calls this when the app opens, so the service is up before the first
+// chat message. Answers at once (202); the wake-up ping runs on its own. Logged-in users only.
+router.post('/warm', isAuth, chatController.warm);
+
 module.exports = router;

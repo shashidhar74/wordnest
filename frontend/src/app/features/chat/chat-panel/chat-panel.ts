@@ -99,6 +99,9 @@ function followUps(intent: ChatIntent, role: string | undefined): string[] {
   }
 }
 
+/** After a 503 (AI service asleep), wait this long before trying the message once more. */
+const RETRY_AFTER_MS = 20000;
+
 const WELCOME =
   'Hi! I can find posts, summarize a post, help you write one, give a status report ' +
   '(e.g. "why was my post rejected?"), or answer questions about the blog.';
@@ -364,6 +367,13 @@ export class ChatPanel {
   private pendingDraft?: ChatDraft;
 
   constructor() {
+    // Wake the AI service now (the panel is created when the app opens) and again whenever the chat
+    // is opened: on the free plan it sleeps when unused and needs ~50 s to start.
+    this.chat.warm();
+    effect(() => {
+      if (this.open()) this.chat.warm(); // throttled in ChatService
+    });
+
     // Keep the newest message in view, and focus the input when the panel opens.
     effect(() => {
       this.messages();
@@ -418,7 +428,20 @@ export class ChatPanel {
     const pendingDraft = this.pendingDraft;
     this.awaiting = undefined; // a question is answered once
     this.pendingDraft = undefined;
-    this.chat.send(text, awaiting, pendingDraft).subscribe({
+    this.request(text, awaiting, pendingDraft, 1);
+  }
+
+  /**
+   * Sends one chat message. Attempt 1 is silent on errors: a 503 usually means the AI service was
+   * asleep (free plan), so instead of an error the chat says it's waking up and tries once more.
+   */
+  private request(
+    text: string,
+    awaiting: ChatAwaiting | undefined,
+    pendingDraft: ChatDraft | undefined,
+    attempt: 1 | 2,
+  ): void {
+    this.chat.send(text, awaiting, pendingDraft, attempt === 1).subscribe({
       next: (res) => {
         this.sending.set(false);
         this.awaiting = res.awaiting;
@@ -437,15 +460,28 @@ export class ChatPanel {
           draft: res.draft,
         });
       },
-      error: () => {
-        // The error toast comes from the error interceptor; keep the text so the user can retry.
+      error: (err: { status?: number; message?: string }) => {
+        if (attempt === 1 && err?.status === 503) {
+          this.add({
+            from: 'bot',
+            text: 'The assistant is waking up (it sleeps when nobody has used it for a while). Trying again in 20 seconds…',
+          });
+          this.chat.warm(true);
+          setTimeout(() => this.request(text, awaiting, pendingDraft, 2), RETRY_AFTER_MS);
+          return; // still "Thinking…"
+        }
+        // Keep the text so the user can retry. On attempt 1 (other errors) show the backend's message,
+        // since that request skipped the error toast.
         this.sending.set(false);
         this.awaiting = awaiting;
         this.pendingDraft = pendingDraft;
         this.draft.set(text);
         this.add({
           from: 'bot',
-          text: "Sorry, I couldn't answer that. Please try again.",
+          text:
+            attempt === 1 && err?.message
+              ? `Sorry, I couldn't answer that: ${err.message}`
+              : "Sorry, I couldn't answer that. Please try again.",
           failed: true,
         });
       },

@@ -72,6 +72,18 @@ exports.chat = async (req, res, next) => {
     }
 };
 
+// POST /chat/warm: start waking the AI service and answer immediately (see routes/chat.js).
+// At most one ping per minute, however many people open the app.
+let lastWarm = 0;
+exports.warm = (req, res) => {
+    const now = Date.now();
+    if (now - lastWarm > 60000) {
+        lastWarm = now;
+        aiService.warmUp();   // never throws; logs the result
+    }
+    res.status(202).json({ message: 'Waking the assistant' });
+};
+
 // ---- find_posts ----------------------------------------------------------------------
 
 // Published posts only. With a topic: title or content match. Without: count + latest 5.
