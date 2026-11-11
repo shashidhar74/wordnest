@@ -9,16 +9,33 @@ const pool = require('../util/database');
 //   guest / user → published only
 //   creator      → published + their own (any status)
 //   admin        → everything
-// Adds its parameter to `params` and returns the SQL condition, e.g. "(status = 'published' OR user_id = $3)".
+// Adds its parameter to `params` and returns the SQL condition, e.g. "(p.status = 'published' OR p.user_id = $3)".
+// Columns are prefixed with p. because the queries join `users` (both tables have id, created_at …).
 function visibleTo(viewer, params) {
     if (viewer && viewer.role === 'admin') {
         return 'TRUE';
     }
     if (viewer && viewer.userId) {
         params.push(viewer.userId);
-        return `(status = 'published' OR user_id = $${params.length})`;
+        return `(p.status = 'published' OR p.user_id = $${params.length})`;
     }
-    return `status = 'published'`;
+    return `p.status = 'published'`;
+}
+
+// ---- what a post looks like when it leaves this file -----------------------------------
+// The author is the post's OWNER (user_id → users.name), not the leftover text column posts.author.
+// LEFT JOIN: if the user were ever deleted, the post still shows (author "Unknown") instead of vanishing.
+const POST_COLUMNS = `
+    p.id, p.title, p.content, p.status, p.img_url, p.user_id,
+    p.reviewed_by, p.reviewed_at, p.review_comment, p.created_at, p.updated_on,
+    p.summary, p.summary_source,
+    json_build_object('id', p.user_id, 'name', COALESCE(u.name, 'Unknown')) AS author`;
+const FROM_POSTS = `FROM posts p LEFT JOIN users u ON u.id = p.user_id`;
+
+// A single post with its author, by id (used after every write so responses look like reads)
+async function findWithAuthor(id) {
+    const result = await pool.query(`SELECT ${POST_COLUMNS} ${FROM_POSTS} WHERE p.id = $1`, [id]);
+    return result.rows[0] || null;
 }
 
 // ---- reading ---------------------------------------------------------------------------
@@ -30,15 +47,15 @@ exports.list = async ({ viewer, search, status, page = 1, limit = 10 }) => {
     const where = [visibleTo(viewer, params)];
     if (search) {
         params.push(`%${search}%`);
-        where.push(`title ILIKE $${params.length}`);
+        where.push(`p.title ILIKE $${params.length}`);
     }
     if (status) {
         params.push(status);
-        where.push(`status = $${params.length}`);
+        where.push(`p.status = $${params.length}`);
     }
     const whereSql = ' WHERE ' + where.join(' AND ');
 
-    const count = await pool.query(`SELECT COUNT(*) FROM posts${whereSql}`, params);
+    const count = await pool.query(`SELECT COUNT(*) FROM posts p${whereSql}`, params);
     const total = parseInt(count.rows[0].count);   // COUNT(*) comes back as a string
 
     params.push(limit);
@@ -46,7 +63,7 @@ exports.list = async ({ viewer, search, status, page = 1, limit = 10 }) => {
     params.push((page - 1) * limit);
     const offsetSql = ` OFFSET $${params.length}`;
     const result = await pool.query(
-        `SELECT * FROM posts${whereSql} ORDER BY id DESC${limitSql}${offsetSql}`, params
+        `SELECT ${POST_COLUMNS} ${FROM_POSTS}${whereSql} ORDER BY p.id DESC${limitSql}${offsetSql}`, params
     );
     return { posts: result.rows, total };
 };
@@ -56,7 +73,7 @@ exports.list = async ({ viewer, search, status, page = 1, limit = 10 }) => {
 exports.findVisible = async (id, viewer) => {
     const params = [id];
     const visible = visibleTo(viewer, params);
-    const result = await pool.query(`SELECT * FROM posts WHERE id = $1 AND ${visible}`, params);
+    const result = await pool.query(`SELECT ${POST_COLUMNS} ${FROM_POSTS} WHERE p.id = $1 AND ${visible}`, params);
     return result.rows[0] || null;
 };
 
@@ -73,10 +90,10 @@ exports.create = async ({ title, content, imgUrl, userId }) => {
     const result = await pool.query(
         // `author` is a leftover column (see PROJECT_NOTES open tasks); kept empty until it's dropped
         `INSERT INTO posts (title, content, status, author, img_url, user_id)
-         VALUES ($1, $2, 'draft', '', $3, $4) RETURNING *`,
+         VALUES ($1, $2, 'draft', '', $3, $4) RETURNING id`,
         [title, content, imgUrl, userId]
     );
-    return result.rows[0];
+    return findWithAuthor(result.rows[0].id);
 };
 
 // Also clears the saved AI summary: the text changed, so the old summary would be stale.
@@ -85,10 +102,10 @@ exports.update = async (id, { title, content, imgUrl }) => {
         `UPDATE posts
          SET title = $1, content = $2, img_url = $3, updated_on = NOW(),
              summary = NULL, summary_source = NULL, summary_updated_at = NULL
-         WHERE id = $4 RETURNING *`,
+         WHERE id = $4 RETURNING id`,
         [title, content, imgUrl, id]
     );
-    return result.rows[0] || null;
+    return result.rows[0] ? findWithAuthor(id) : null;
 };
 
 // Save an AI summary on the post (see util/summary.js). source: 'gemini' | 'extractive'.
@@ -116,8 +133,8 @@ exports.changeStatus = async (id, { from, to, comment, isReview, reviewerId }) =
              reviewed_by    = CASE WHEN $3 THEN $4::int ELSE reviewed_by END,
              reviewed_at    = CASE WHEN $3 THEN NOW() ELSE reviewed_at END
          WHERE id = $5 AND status = ANY($6)
-         RETURNING *`,
+         RETURNING id`,
         [to, comment ?? null, isReview, reviewerId, id, from]
     );
-    return result.rows[0] || null;
+    return result.rows[0] ? findWithAuthor(id) : null;
 };
