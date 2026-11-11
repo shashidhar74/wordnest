@@ -266,9 +266,24 @@ export class PostEditorPage {
   protected readonly previewUrl = computed(() => this.localPreview() ?? this.post()?.imageUrl);
 
   constructor() {
+    // A draft written by the chat assistant ("Open in editor") arrives in the navigation state.
+    // Read it now: the navigation is only "current" while this page is being created.
+    const chatDraft = this.router.currentNavigation()?.extras.state?.['draft'] as
+      { title?: string; content?: string } | undefined;
+
     effect(() => {
       const id = this.id();
-      untracked(() => (id ? this.load(id) : this.post.set(null)));
+      untracked(() => {
+        if (id) {
+          this.load(id);
+          return;
+        }
+        this.post.set(null);
+        if (chatDraft?.title || chatDraft?.content) {
+          this.form.patchValue({ title: chatDraft.title ?? '', content: chatDraft.content ?? '' });
+          this.form.markAsDirty();
+        }
+      });
     });
 
     // Coming from the chat with a topic → open the AI panel, ready to generate.

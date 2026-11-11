@@ -39,6 +39,9 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.13.14           # the model was trained/tested on 3.13 (Render's default is newer)
+      - key: OPENBLAS_NUM_THREADS
+        value: "1"               # numpy/scikit-learn's maths library reserves memory per CPU thread;
+                                 # one thread keeps the service small (free plan: 512 MB)
 
   # ---- Express API (backend/) -------------------------------------------------------------
   - type: web

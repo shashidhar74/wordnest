@@ -482,7 +482,12 @@ paths:
              and `awaiting: post_for_summary`.
            - **`context.awaiting = post_for_summary`** in the request → skip the intent model; the whole
              message is a post title → summarize it (or ask again if not found).
-           - `create_post` → creators: `action: { type: open_editor, topic }`; others: explain only creators can write
+           - `create_post` (creators; others are told only creators can write) — a short conversation:
+             no topic → ask (`awaiting: post_topic`); no tone → ask with tone chips (`awaiting: post_tone`,
+             `draft: { topic }`); both → Gemini writes it → `draft: { topic, tone, title, content }` as a preview.
+             Nothing is saved: the chat panel saves it with `POST /feed/posts` (image required) after the
+             creator confirms. Gemini busy → friendly reply + `action: { type: open_editor, topic }`.
+             "write a funny post about X" answers both questions at once.
            - `post_report` → counts or review reasons, **filtered by role in SQL** (use `req.userId` / `req.userRole`):
              | Role | Status-wise counts (`stats`) | "Why was X rejected?" (`review_comment`) |
              |---|---|---|
@@ -495,8 +500,9 @@ paths:
              ID, Title, Status, Created, Updated (+ Review comment for creators/admins). The browser builds the CSV.
            - `site_help` → short FAQ answer
            - `out_of_scope` → polite refusal
-        Stateless: each message is handled on its own (no history in v1). The only memory is
-        `awaiting`: when the bot asks a question, the frontend sends it back as `context.awaiting`.
+        Stateless: each message is handled on its own (no history in v1). The only memory is the context:
+        when the bot asks a question, the frontend sends back `context.awaiting` (and, in the post flow,
+        `context.draft` with the topic/tone collected so far).
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -509,9 +515,14 @@ paths:
                 message: { type: string, minLength: 1, maxLength: 500, example: any posts about cooking? }
                 context:
                   type: object
-                  description: The previous reply's `awaiting`, sent back so this message is read as its answer
+                  description: The previous reply's `awaiting` (and post-flow `draft`), sent back so this message is read as its answer
                   properties:
-                    awaiting: { type: string, enum: [post_for_summary] }
+                    awaiting: { type: string, enum: [post_for_summary, post_topic, post_tone] }
+                    draft:
+                      type: object
+                      properties:
+                        topic: { type: string, minLength: 3, maxLength: 200 }
+                        tone: { type: string, enum: [informative, casual, formal, funny] }
       responses:
         '200':
           description: Bot reply
@@ -742,8 +753,18 @@ components:
           description: What clicking one of `posts` does. `summarize` is used under "Which post?".
         awaiting:
           type: string
-          enum: [post_for_summary]
+          enum: [post_for_summary, post_topic, post_tone]
           description: The bot asked a question; the frontend sends this back as `context.awaiting` next time.
+        draft:
+          type: object
+          description: |
+            create_post only. Partial ({ topic }) while the bot asks for the tone; complete
+            ({ topic, tone, title, content }) when Gemini wrote it, shown as a preview to save.
+          properties:
+            topic: { type: string }
+            tone: { type: string, enum: [informative, casual, formal, funny] }
+            title: { type: string }
+            content: { type: string }
         action:
           type: object
           description: Something the frontend should offer to do. Only for create_post (creators).

@@ -21,14 +21,30 @@ export interface ChatStatRow {
   status?: PostStatus;
 }
 
-/** What the bot asked for in its last reply, e.g. "Which post?" → the next message is a post title. */
-export type ChatAwaiting = 'post_for_summary';
+/**
+ * What the bot asked for in its last reply; the next message is read as the answer:
+ *   post_for_summary → a post title · post_topic → what a new post is about · post_tone → its tone
+ */
+export type ChatAwaiting = 'post_for_summary' | 'post_topic' | 'post_tone';
+
+export type ChatTone = 'informative' | 'casual' | 'formal' | 'funny';
+
+/**
+ * A post being written in the chat. Partial while the bot is still asking (topic, then tone);
+ * complete (with title + content from Gemini) when it's shown as a preview to save.
+ */
+export interface ChatDraft {
+  topic?: string;
+  tone?: ChatTone;
+  title?: string;
+  content?: string;
+}
 
 export interface ChatRequest {
   /** 1–500 characters. */
   message: string;
-  /** Sent back from the previous reply's `awaiting`, so a follow-up answer keeps its meaning. */
-  context?: { awaiting?: ChatAwaiting };
+  /** Sent back from the previous reply, so a follow-up answer keeps its meaning. */
+  context?: { awaiting?: ChatAwaiting; draft?: Pick<ChatDraft, 'topic' | 'tone'> };
 }
 
 export interface ChatPostLink {
@@ -47,7 +63,10 @@ export interface ChatDownload {
 /** Something the panel offers to do for the user. v1: open the editor with a topic. */
 export interface ChatAction {
   type: 'open_editor';
+  /** New post: pre-fill Write with AI with this topic. */
   topic?: string;
+  /** Existing post: open it in the editor (e.g. right after saving a draft from the chat). */
+  postId?: string | number;
 }
 
 export interface ChatResponse {
@@ -65,6 +84,8 @@ export interface ChatResponse {
   action?: ChatAction;
   /** Optional chips for the next step. If missing, the panel picks follow-ups by intent and role. */
   suggestions?: string[];
+  /** create_post: the post being written (sent back as context.draft; a preview once it has a title). */
+  draft?: ChatDraft;
   /** The bot asked a question; the panel sends this back as `context.awaiting` with the next message. */
   awaiting?: ChatAwaiting;
 }
@@ -83,6 +104,7 @@ export interface ChatMessage {
   download?: ChatDownload;
   action?: ChatAction;
   suggestions?: string[];
+  draft?: ChatDraft;
   /** Request failed — show the text in an error style. */
   failed?: boolean;
 }

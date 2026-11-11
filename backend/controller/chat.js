@@ -6,6 +6,7 @@
 const { validationResult } = require('express-validator');
 const pool = require('../util/database');
 const { getSummary } = require('../util/summary');
+const ai = require('../util/ai');                  // Gemini: writes post drafts
 const aiService = require('../util/ai-service');
 
 const STATUS_LABEL = {
@@ -19,13 +20,21 @@ exports.chat = async (req, res, next) => {
         return res.status(422).json({ message: 'Invalid message', errors: errors.array() });
     }
     const message = req.body.message.trim();
-    const awaiting = req.body.context && req.body.context.awaiting;
+    const context = req.body.context || {};
+    const awaiting = context.awaiting;
+    const draft = context.draft || {};           // what the post flow has collected so far
     const user = { id: req.userId, role: req.userRole };
 
     try {
-        // The bot asked "Which post?" → this message is the answer (a title), no model needed.
+        // The bot asked a question → this message is the answer, no intent model needed.
         if (awaiting === 'post_for_summary') {
             return res.json(await summarize(user, { query: cleanText(message), confidence: 1 }));
+        }
+        if (awaiting === 'post_topic') {
+            return res.json(await createPost(user, { topic: cleanTopic(message), tone: toneIn(message) }, 1));
+        }
+        if (awaiting === 'post_tone') {
+            return res.json(await createPost(user, { topic: draft.topic, tone: toneIn(message) || 'informative' }, 1));
         }
 
         const { intent, confidence } = await aiService.classify(message);
@@ -41,7 +50,7 @@ exports.chat = async (req, res, next) => {
                     confidence
                 }));
             case 'create_post':
-                return res.json({ ...base, ...createPost(user, message) });
+                return res.json(await createPost(user, { topic: extractTopic(message), tone: toneIn(message) }, confidence));
             case 'post_report':
                 return res.json({ ...base, ...(await report(user, message)) });
             case 'site_help':
@@ -149,17 +158,76 @@ async function summarize(user, { query, latest, confidence }) {
 
 // ---- create_post -----------------------------------------------------------------------
 
-function createPost(user, message) {
+// A short conversation that collects what's missing, then writes the post with Gemini:
+//   no topic → ask "What should it be about?"   (awaiting: post_topic)
+//   no tone  → ask "Which tone?" + tone chips    (awaiting: post_tone, draft: { topic })
+//   both     → Gemini draft → preview in the chat (draft: { topic, tone, title, content })
+// Nothing is saved here: the chat panel saves the draft with POST /feed/posts (image required),
+// after the creator confirms. The frontend sends `draft` back as context.draft between steps.
+
+const TONES = ['informative', 'casual', 'formal', 'funny'];
+
+async function createPost(user, { topic, tone }, confidence) {
+    const base = { intent: 'create_post', confidence };
     if (user.role !== 'creator') {
-        return { reply: 'Only creators can write posts. Ask an admin to make you a creator.' };
+        return { ...base, reply: 'Only creators can write posts. Ask an admin to make you a creator.' };
     }
-    const topic = extractTopic(message);
-    return {
-        reply: topic
-            ? `Let's write it! Open the editor and I'll fill in "${topic}" for Write with AI.`
-            : "Let's write it! Open the editor, then tell Write with AI your topic.",
-        action: { type: 'open_editor', ...(topic ? { topic } : {}) }
-    };
+    if (!topic) {
+        return {
+            ...base,
+            reply: 'Sure! What should the post be about?',
+            awaiting: 'post_topic'
+        };
+    }
+    if (!tone) {
+        return {
+            ...base,
+            reply: `A post about "${topic}". Which tone should it have?`,
+            awaiting: 'post_tone',
+            draft: { topic },
+            suggestions: TONES.map(capitalize)
+        };
+    }
+
+    try {
+        const post = await ai.generatePost(topic, tone, '');   // Gemini → { title, content }
+        return {
+            ...base,
+            reply: `Here's a ${tone} draft about "${topic}". Add a cover image and save it as a draft, or open it in the editor to change it first.`,
+            draft: { topic, tone, title: post.title, content: post.content }
+        };
+    } catch (err) {
+        // Gemini busy / quota used up: don't fail the chat, offer the editor instead
+        console.log('Chat post draft failed:', err.message);
+        return {
+            ...base,
+            reply: "I couldn't write the draft right now (the AI writer is busy). Try again in a minute, or open the editor and write it there.",
+            draft: { topic },
+            action: { type: 'open_editor', topic }
+        };
+    }
+}
+
+// "write a funny post about…" → 'funny'. Also understands a few synonyms.
+function toneIn(message) {
+    const text = message.toLowerCase();
+    const synonyms = { professional: 'formal', serious: 'formal', humorous: 'funny', fun: 'funny', relaxed: 'casual', informal: 'casual', educational: 'informative' };
+    const word = text.match(/\b(informative|casual|formal|funny|professional|serious|humorous|fun|relaxed|informal|educational)\b/);
+    if (!word) return undefined;
+    return TONES.includes(word[1]) ? word[1] : synonyms[word[1]];
+}
+
+// The answer to "What should the post be about?" — the whole message, minus filler words
+function cleanTopic(message) {
+    const topic = cleanText(
+        message.replace(/^(it'?s |write |a post |about |on |regarding )+/i, '')
+               .replace(/\b(in an? )?(informative|casual|formal|funny|professional|humorous) (tone|style|way)\b/i, '')
+    );
+    return topic.length >= 3 ? topic.slice(0, 200) : undefined;
+}
+
+function capitalize(word) {
+    return word.charAt(0).toUpperCase() + word.slice(1);
 }
 
 // ---- post_report -----------------------------------------------------------------------

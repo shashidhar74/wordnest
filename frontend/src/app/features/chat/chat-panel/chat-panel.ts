@@ -18,14 +18,17 @@ import {
   ChatAction,
   ChatAwaiting,
   ChatDownload,
+  ChatDraft,
   ChatIntent,
   ChatMessage,
   ChatPostLink,
+  Post,
 } from '../../../core/models';
 import { StatusPill } from '../../../shared/components/status-pill/status-pill';
 import { AuthService } from '../../../core/services/auth.service';
 import { PostService } from '../../posts/post.service';
 import { PostViewService } from '../../posts/post-view-dialog/post-view-dialog';
+import { ChatDraftCard } from '../chat-draft-card/chat-draft-card';
 import { ChatService } from '../chat.service';
 import { downloadCsv } from '../csv-download';
 
@@ -107,7 +110,7 @@ const WELCOME =
  */
 @Component({
   selector: 'app-chat-panel',
-  imports: [NgIcon, DecimalPipe, StatusPill],
+  imports: [NgIcon, DecimalPipe, StatusPill, ChatDraftCard],
   host: { '(document:keydown.escape)': 'open.set(false)' },
   template: `
     @if (open()) {
@@ -211,6 +214,15 @@ const WELCOME =
                   </ul>
                 }
 
+                @if (m.draft?.title) {
+                  <app-chat-draft-card
+                    [draft]="m.draft!"
+                    (saved)="onDraftSaved($event)"
+                    (edit)="editDraft($event)"
+                    (retry)="retryDraft($event)"
+                  />
+                }
+
                 @if (m.action?.type === 'open_editor') {
                   <button
                     type="button"
@@ -218,7 +230,11 @@ const WELCOME =
                     (click)="runAction(m.action!)"
                   >
                     <ng-icon name="lucideSparkles" size="14" />
-                    Open editor{{ m.action?.topic ? ': ' + m.action?.topic : '' }}
+                    @if (m.action?.postId) {
+                      Open in editor to submit
+                    } @else {
+                      Open editor{{ m.action?.topic ? ': ' + m.action?.topic : '' }}
+                    }
                   </button>
                 }
 
@@ -344,6 +360,8 @@ export class ChatPanel {
   private nextId = 1;
   /** The bot's open question from its last reply, sent back with the next message. */
   private awaiting?: ChatAwaiting;
+  /** The post being written in the chat (topic, then tone), sent back while the bot is asking. */
+  private pendingDraft?: ChatDraft;
 
   constructor() {
     // Keep the newest message in view, and focus the input when the panel opens.
@@ -369,7 +387,8 @@ export class ChatPanel {
 
   /**
    * Chip clicked. "…" chips ("Find posts about…") go into the input to finish; the rest are sent.
-   * A chip is a new request, so it cancels any open question ("Which post?").
+   * Chips the bot offered as ANSWERS to its question (e.g. the tone chips) keep the question open;
+   * any other chip is a new request, so it cancels the open question ("Which post?").
    */
   protected pick(chip: string): void {
     if (chip.endsWith('…')) {
@@ -377,23 +396,33 @@ export class ChatPanel {
       this.box()?.nativeElement.focus();
       return;
     }
-    this.awaiting = undefined;
+    const list = this.messages();
+    const last = list[list.length - 1];
+    const isAnswer = !!this.awaiting && last?.from === 'bot' && !!last.suggestions?.includes(chip);
+    if (!isAnswer) {
+      this.awaiting = undefined;
+      this.pendingDraft = undefined;
+    }
     this.submit(chip);
   }
 
-  private submit(text: string): void {
+  /** `shown` = what appears in the user's bubble, when it differs from what is sent. */
+  private submit(text: string, shown = text): void {
     if (!text || this.sending()) return;
 
-    this.add({ from: 'user', text });
+    this.add({ from: 'user', text: shown });
     this.draft.set('');
     this.sending.set(true);
 
     const awaiting = this.awaiting;
+    const pendingDraft = this.pendingDraft;
     this.awaiting = undefined; // a question is answered once
-    this.chat.send(text, awaiting).subscribe({
+    this.pendingDraft = undefined;
+    this.chat.send(text, awaiting, pendingDraft).subscribe({
       next: (res) => {
         this.sending.set(false);
         this.awaiting = res.awaiting;
+        this.pendingDraft = res.awaiting ? res.draft : undefined;
         this.add({
           from: 'bot',
           text: res.reply,
@@ -405,12 +434,14 @@ export class ChatPanel {
           download: res.download,
           suggestions: res.suggestions,
           action: res.action,
+          draft: res.draft,
         });
       },
       error: () => {
         // The error toast comes from the error interceptor; keep the text so the user can retry.
         this.sending.set(false);
         this.awaiting = awaiting;
+        this.pendingDraft = pendingDraft;
         this.draft.set(text);
         this.add({
           from: 'bot',
@@ -458,12 +489,42 @@ export class ChatPanel {
   }
 
   protected runAction(action: ChatAction): void {
-    if (action.type === 'open_editor') {
-      this.open.set(false);
-      void this.router.navigate(['/posts/new'], {
-        queryParams: action.topic ? { topic: action.topic } : {},
-      });
+    if (action.type !== 'open_editor') return;
+    this.open.set(false);
+    if (action.postId != null) {
+      void this.router.navigate(['/posts', String(action.postId)]);
+      return;
     }
+    void this.router.navigate(['/posts/new'], {
+      queryParams: action.topic ? { topic: action.topic } : {},
+    });
+  }
+
+  // ---- post drafts written in the chat (chat-draft-card) ----------------------------
+
+  /** Saved with POST /feed/posts → always a draft; the creator submits it for review later. */
+  protected onDraftSaved(post: Post): void {
+    this.add({
+      from: 'bot',
+      text: `Saved as a draft: "${post.title}". Open it in the editor to check it and submit it for review.`,
+      action: { type: 'open_editor', postId: post.id },
+    });
+  }
+
+  /** Continue in the editor: title and content travel in the navigation state (not the URL). */
+  protected editDraft(draft: ChatDraft): void {
+    this.open.set(false);
+    void this.router.navigate(['/posts/new'], {
+      state: { draft: { title: draft.title, content: draft.content } },
+    });
+  }
+
+  /** Another version: answer the tone question again with the same topic and tone. */
+  protected retryDraft(draft: ChatDraft): void {
+    if (!draft.topic) return;
+    this.awaiting = 'post_tone';
+    this.pendingDraft = { topic: draft.topic };
+    this.submit(draft.tone ?? 'informative', 'Try another version');
   }
 
   private add(message: Omit<ChatMessage, 'id'>): void {
