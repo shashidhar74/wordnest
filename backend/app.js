@@ -48,4 +48,8 @@ app.use((error,req,res,next)=>{
 })
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Server listening on port ${PORT}`))
+app.listen(PORT, () => {
+    console.log(`Server listening on port ${PORT}`);
+    // wake the Python AI service now, so the first chat message doesn't wait for its cold start
+    require('./util/ai-service').warmUp();
+})
