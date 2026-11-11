@@ -60,7 +60,7 @@ exports.loginUser = async (req,res,next)=>{
         const user = result.rows[0];
         const isEqual = await bcrypt.compare(password,user.password);
         if(!isEqual){
-            const error = new Error('Invalid Passord!!')
+            const error = new Error('Invalid email or password!!')
             error.statusCode = 401;
             throw error;
         }

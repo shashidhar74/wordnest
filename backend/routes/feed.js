@@ -5,6 +5,7 @@ const upload = require('../util/upload')
 const isAuth = require('../middleware/is-auth')
 const optionalAuth = require('../middleware/optional-auth')
 const hasRole = require('../middleware/has-role')
+const {aiLimiter} = require('../middleware/rate-limit')
 
 const router = express.Router();
 // public, but a token (if sent) widens what you see: creators → +own posts, admins → all
@@ -48,9 +49,9 @@ router.patch('/posts/:postId/reject',   isAuth, hasRole('admin'),            [po
 router.patch('/posts/:postId/close',    isAuth, hasRole('creator','admin'),  [postId],          feedController.changeStatus('close'))
 
 // AI features
-router.post('/posts/:postId/summary',isAuth,[postId],feedController.summarizePost)
+router.post('/posts/:postId/summary',isAuth,aiLimiter,[postId],feedController.summarizePost)
 
-router.post('/ai/generate-post',isAuth,hasRole('creator'),[
+router.post('/ai/generate-post',isAuth,aiLimiter,hasRole('creator'),[
     body('topic').trim().isLength({min:3,max:200}).withMessage('Topic must be 3 to 200 characters'),
     body('tone').optional().isIn(['formal','casual','funny','informative']).withMessage('Invalid tone'),
     body('keywords').optional().trim().isLength({max:200}).withMessage('Keywords must be under 200 characters')
