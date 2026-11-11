@@ -79,12 +79,24 @@ exports.create = async ({ title, content, imgUrl, userId }) => {
     return result.rows[0];
 };
 
+// Also clears the saved AI summary: the text changed, so the old summary would be stale.
 exports.update = async (id, { title, content, imgUrl }) => {
     const result = await pool.query(
-        'UPDATE posts SET title = $1, content = $2, img_url = $3, updated_on = NOW() WHERE id = $4 RETURNING *',
+        `UPDATE posts
+         SET title = $1, content = $2, img_url = $3, updated_on = NOW(),
+             summary = NULL, summary_source = NULL, summary_updated_at = NULL
+         WHERE id = $4 RETURNING *`,
         [title, content, imgUrl, id]
     );
     return result.rows[0] || null;
+};
+
+// Save an AI summary on the post (see util/summary.js). source: 'gemini' | 'extractive'.
+exports.saveSummary = async (id, summary, source) => {
+    await pool.query(
+        'UPDATE posts SET summary = $1, summary_source = $2, summary_updated_at = NOW() WHERE id = $3',
+        [summary, source, id]
+    );
 };
 
 // Returns the deleted row (the caller deletes its image file), or null.

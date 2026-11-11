@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
-from app import intent
+from app import intent, summarizer
 
 # reads ai-service/.env (HF_HOME, DB_* …) before any model library loads, whatever the cwd is
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
@@ -71,6 +71,25 @@ def intent_model():
         raise HTTPException(status_code=503, detail=str(err)) from err
 
 
+# ---- POST /summarize -----------------------------------------------------------
+
+class SummarizeRequest(BaseModel):
+    title: str = Field(default="", max_length=300)
+    content: str = Field(min_length=1, max_length=50000)
+    max_sentences: int = Field(default=3, ge=1, le=10)
+
+
+class SummarizeResponse(BaseModel):
+    summary: str
+    method: str = Field(examples=["extractive"])
+
+
+@app.post("/summarize", response_model=SummarizeResponse)
+def summarize(body: SummarizeRequest):
+    """Our own extractive summary: the post's most central sentences (no LLM, milliseconds)."""
+    text = summarizer.summarize(body.title, body.content, body.max_sentences)
+    return SummarizeResponse(summary=text, method="extractive")
+
+
 # Next endpoints (see README.md → Roadmap):
-#   POST /summarize   { "title": str, "content": str }  -> { "summary": str }
 #   POST /search      { "query": str, "k": int }        -> { "results": [...] }

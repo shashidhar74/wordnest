@@ -39,6 +39,28 @@ exports.classify = async (text) => {
     return { intent: data.intent, confidence: data.confidence };
 };
 
+// POST /summarize → our own extractive summary (no LLM). Used when Gemini is busy or down.
+exports.summarize = async (title, content) => {
+    let response;
+    try {
+        response = await fetch(`${AI_SERVICE_URL}/summarize`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ title, content: content.slice(0, 50000), max_sentences: 3 }),
+            signal: AbortSignal.timeout(TIMEOUT_MS)
+        });
+    } catch (err) {
+        console.log('ai-service unreachable (summarize):', err.message);
+        throw serviceError(503, 'AI service is temporarily unavailable');
+    }
+    if (!response.ok) {
+        console.log('ai-service summarize error', response.status);
+        throw serviceError(503, 'AI service is temporarily unavailable');
+    }
+    const data = await response.json();
+    return data.summary;
+};
+
 // Wake the AI service in the background (called once when the backend starts).
 // When someone opens the site, the backend wakes up first; pinging the AI service right away lets
 // both wake in parallel, so it's usually ready by the time the first chat message is sent.

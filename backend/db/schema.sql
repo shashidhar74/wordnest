@@ -10,7 +10,7 @@
 -- PostgreSQL database dump
 --
 
-\restrict mapvw7imnUWnxAAl4F1cCqeZEHrzdeX5TVy0fzi9b464IOZ1btOjNpO1TLu3Rpp
+\restrict A03nBPfCV2xrAqDT6pqfv0lmKnq7vOs7WzGwMNpcl3HtIuOsNkaJfv8jQ1E6tr9
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.6
@@ -99,7 +99,11 @@ CREATE TABLE public.posts (
     reviewed_by integer,
     reviewed_at timestamp without time zone,
     review_comment text,
-    CONSTRAINT posts_status_check CHECK ((status = ANY (ARRAY['draft'::text, 'pending'::text, 'clarification'::text, 'published'::text, 'rejected'::text, 'closed'::text])))
+    summary text,
+    summary_source text,
+    summary_updated_at timestamp with time zone,
+    CONSTRAINT posts_status_check CHECK ((status = ANY (ARRAY['draft'::text, 'pending'::text, 'clarification'::text, 'published'::text, 'rejected'::text, 'closed'::text]))),
+    CONSTRAINT posts_summary_source_check CHECK (((summary_source IS NULL) OR (summary_source = ANY (ARRAY['gemini'::text, 'extractive'::text]))))
 );
 
 
@@ -276,5 +280,5 @@ ALTER TABLE ONLY public.posts
 -- PostgreSQL database dump complete
 --
 
-\unrestrict mapvw7imnUWnxAAl4F1cCqeZEHrzdeX5TVy0fzi9b464IOZ1btOjNpO1TLu3Rpp
+\unrestrict A03nBPfCV2xrAqDT6pqfv0lmKnq7vOs7WzGwMNpcl3HtIuOsNkaJfv8jQ1E6tr9
 

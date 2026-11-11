@@ -7,6 +7,7 @@ import {
   Paginated,
   Post,
   PostListResponse,
+  PostSummary,
   PostQuery,
   SavePostDto,
 } from '../../core/models';
@@ -83,11 +84,15 @@ export class PostService {
 
   // ---- AI ----------------------------------------------------------------------
 
-  /** POST /feed/posts/:id/summary — summary of the post as saved (any signed-in user). */
-  summarize(id: string): Observable<string> {
-    return this.api
-      .post<{ summary: string }>(`${this.path}/${id}/summary`, {})
-      .pipe(map((res) => res.summary));
+  /**
+   * POST /feed/posts/:id/summary — summary of the post as saved (any signed-in user).
+   * The backend returns the saved summary when there is one; `refresh` asks for a new one.
+   */
+  summarize(id: string, refresh = false): Observable<PostSummary> {
+    return this.api.post<PostSummary>(
+      `${this.path}/${id}/summary`,
+      refresh ? { refresh: true } : {},
+    );
   }
 
   /** POST /feed/ai/generate-post — AI draft for the editor form (creator only, not saved). */

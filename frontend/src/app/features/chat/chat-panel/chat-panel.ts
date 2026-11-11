@@ -44,11 +44,26 @@ const INTENT_LABEL: Record<ChatIntent, string> = {
 function starters(role: string | undefined): string[] {
   switch (role) {
     case 'creator':
-      return ['Write a post about…', 'Status report of my posts', 'Why was my post rejected?', 'Show latest posts'];
+      return [
+        'Write a post about…',
+        'Status report of my posts',
+        'Why was my post rejected?',
+        'Show latest posts',
+      ];
     case 'admin':
-      return ['Status report of all posts', 'How many posts are pending?', 'Download all posts as CSV', 'Show latest posts'];
+      return [
+        'Status report of all posts',
+        'How many posts are pending?',
+        'Download all posts as CSV',
+        'Show latest posts',
+      ];
     default:
-      return ['Show latest posts', 'Find posts about…', 'Summarize the latest post', 'How many posts are there?'];
+      return [
+        'Show latest posts',
+        'Find posts about…',
+        'Summarize the latest post',
+        'How many posts are there?',
+      ];
   }
 }
 
@@ -59,7 +74,11 @@ function followUps(intent: ChatIntent, role: string | undefined): string[] {
     case 'find_posts':
       return ['Summarize the latest post', 'Find posts about…', 'How many posts are there?'];
     case 'summarize_post':
-      return ['Show latest posts', 'Summarize…', ...(role === 'creator' ? ['Write a post about…'] : [])];
+      return [
+        'Show latest posts',
+        'Summarize…',
+        ...(role === 'creator' ? ['Write a post about…'] : []),
+      ];
     case 'post_report':
       return canReview
         ? ['Download the list as CSV', 'Why was my post rejected?', 'How many posts are pending?']
@@ -67,7 +86,11 @@ function followUps(intent: ChatIntent, role: string | undefined): string[] {
     case 'create_post':
       return ['How do I add an image?', 'How do I submit for review?'];
     case 'site_help':
-      return ['What image formats are allowed?', 'What does clarification mean?', 'Show latest posts'];
+      return [
+        'What image formats are allowed?',
+        'What does clarification mean?',
+        'Show latest posts',
+      ];
     default:
       return starters(role);
   }
@@ -97,11 +120,18 @@ const WELCOME =
           <ng-icon name="lucideBot" size="17" class="text-brand" />
           <h2 id="chat-title" class="text-sm font-semibold">WordNest assistant</h2>
           @if (isMock) {
-            <span class="pill tone-gray" title="environment.mock.chat is on: replies are faked in the browser">
+            <span
+              class="pill tone-gray"
+              title="environment.mock.chat is on: replies are faked in the browser"
+            >
               mock
             </span>
           }
-          <button class="btn-icon ml-auto -mr-1.5" aria-label="Close chat" (click)="open.set(false)">
+          <button
+            class="btn-icon ml-auto -mr-1.5"
+            aria-label="Close chat"
+            (click)="open.set(false)"
+          >
             <ng-icon name="lucideX" size="15" />
           </button>
         </header>
@@ -111,19 +141,30 @@ const WELCOME =
             @if (m.from === 'user') {
               <p
                 class="ml-auto w-fit max-w-[85%] rounded-lg rounded-br-sm bg-brand px-3 py-2 text-sm whitespace-pre-line text-brand-fg"
-              >{{ m.text }}</p>
+              >
+                {{ m.text }}
+              </p>
             } @else {
               <div class="max-w-[90%]">
                 <p
                   class="w-fit rounded-lg rounded-bl-sm px-3 py-2 text-sm whitespace-pre-line"
-                  [class]="m.failed ? 'bg-red-50 text-red-800 dark:bg-red-500/10 dark:text-red-200' : 'bg-surface-2 text-fg'"
-                >{{ m.text }}</p>
+                  [class]="
+                    m.failed
+                      ? 'bg-red-50 text-red-800 dark:bg-red-500/10 dark:text-red-200'
+                      : 'bg-surface-2 text-fg'
+                  "
+                >
+                  {{ m.text }}
+                </p>
 
                 @if (m.stats?.length) {
                   <table class="mt-1.5 w-full max-w-[240px] text-sm">
                     <tbody>
                       @for (row of m.stats; track row.label) {
-                        <tr class="border-b border-line last:border-0" [class.font-semibold]="!row.status">
+                        <tr
+                          class="border-b border-line last:border-0"
+                          [class.font-semibold]="!row.status"
+                        >
                           <td class="py-1 pr-2">
                             @if (row.status) {
                               <app-status-pill [status]="row.status" />
@@ -141,7 +182,8 @@ const WELCOME =
                 @if (m.download; as file) {
                   <button type="button" class="btn btn-outline mt-1.5" (click)="download(file)">
                     <ng-icon name="lucideDownload" size="14" />
-                    Download CSV ({{ file.rows.length }} {{ file.rows.length === 1 ? 'row' : 'rows' }})
+                    Download CSV ({{ file.rows.length }}
+                    {{ file.rows.length === 1 ? 'row' : 'rows' }})
                   </button>
                 }
 
@@ -156,7 +198,9 @@ const WELCOME =
                           (click)="clickPost(p, m)"
                         >
                           <ng-icon
-                            [name]="m.postsAction === 'summarize' ? 'lucideSparkles' : 'lucideNewspaper'"
+                            [name]="
+                              m.postsAction === 'summarize' ? 'lucideSparkles' : 'lucideNewspaper'
+                            "
                             size="13"
                             class="shrink-0 text-fg-muted"
                           />
@@ -168,7 +212,11 @@ const WELCOME =
                 }
 
                 @if (m.action?.type === 'open_editor') {
-                  <button type="button" class="btn btn-primary mt-1.5" (click)="runAction(m.action!)">
+                  <button
+                    type="button"
+                    class="btn btn-primary mt-1.5"
+                    (click)="runAction(m.action!)"
+                  >
                     <ng-icon name="lucideSparkles" size="14" />
                     Open editor{{ m.action?.topic ? ': ' + m.action?.topic : '' }}
                   </button>
@@ -179,7 +227,8 @@ const WELCOME =
                     class="mt-1 text-2xs text-fg-subtle"
                     title="Detected by the intent model in ai-service"
                   >
-                    {{ intentLabel[m.intent] }} · {{ (m.confidence ?? 0) * 100 | number: '1.0-0' }}% sure
+                    {{ intentLabel[m.intent] }} · {{ (m.confidence ?? 0) * 100 | number: '1.0-0' }}%
+                    sure
                   </p>
                 }
               </div>
@@ -187,7 +236,9 @@ const WELCOME =
           }
 
           @if (sending()) {
-            <p class="flex w-fit items-center gap-1.5 rounded-lg bg-surface-2 px-3 py-2 text-sm text-fg-muted">
+            <p
+              class="flex w-fit items-center gap-1.5 rounded-lg bg-surface-2 px-3 py-2 text-sm text-fg-muted"
+            >
               <ng-icon name="lucideLoaderCircle" size="13" class="animate-spin" />
               Thinking…
             </p>
@@ -195,7 +246,10 @@ const WELCOME =
         </div>
 
         @if (suggestions().length && !sending()) {
-          <div class="flex flex-wrap gap-1.5 border-t border-line px-2.5 pt-2" aria-label="Suggestions">
+          <div
+            class="flex flex-wrap gap-1.5 border-t border-line px-2.5 pt-2"
+            aria-label="Suggestions"
+          >
             @for (chip of suggestions(); track chip) {
               <button
                 type="button"
@@ -270,12 +324,16 @@ export class ChatPanel {
   protected readonly suggestions = computed(() => {
     const list = this.messages();
     const last = list[list.length - 1];
-    const lastUserText = [...list].reverse().find((m) => m.from === 'user')?.text.toLowerCase();
+    const lastUserText = [...list]
+      .reverse()
+      .find((m) => m.from === 'user')
+      ?.text.toLowerCase();
     const role = this.auth.role();
 
     let chips: string[];
     if (last?.from === 'bot' && last.suggestions?.length) chips = last.suggestions;
-    else if (last?.from === 'bot' && last.intent && !last.failed) chips = followUps(last.intent, role);
+    else if (last?.from === 'bot' && last.intent && !last.failed)
+      chips = followUps(last.intent, role);
     else chips = starters(role);
 
     return chips.filter((c) => c.toLowerCase() !== lastUserText).slice(0, 4);
@@ -354,7 +412,11 @@ export class ChatPanel {
         this.sending.set(false);
         this.awaiting = awaiting;
         this.draft.set(text);
-        this.add({ from: 'bot', text: "Sorry, I couldn't answer that. Please try again.", failed: true });
+        this.add({
+          from: 'bot',
+          text: "Sorry, I couldn't answer that. Please try again.",
+          failed: true,
+        });
       },
     });
   }
@@ -372,9 +434,10 @@ export class ChatPanel {
     this.awaiting = undefined; // answered by clicking
     this.add({ from: 'user', text: `Summarize "${post.title}"` });
     this.sending.set(true);
-    // Same endpoint as the "Summarize with AI" button: POST /feed/posts/:id/summary (Gemini).
+    // Same endpoint as the "Summarize with AI" button: POST /feed/posts/:id/summary
+    // (saved summary, or Gemini, or our own summarizer when Gemini is busy).
     this.posts.summarize(String(post.id)).subscribe({
-      next: (summary) => {
+      next: ({ summary }) => {
         this.sending.set(false);
         this.add({
           from: 'bot',
@@ -385,7 +448,11 @@ export class ChatPanel {
       },
       error: () => {
         this.sending.set(false);
-        this.add({ from: 'bot', text: "Sorry, I couldn't summarize that post. Please try again.", failed: true });
+        this.add({
+          from: 'bot',
+          text: "Sorry, I couldn't summarize that post. Please try again.",
+          failed: true,
+        });
       },
     });
   }

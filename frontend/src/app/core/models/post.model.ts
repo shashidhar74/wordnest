@@ -73,6 +73,15 @@ export interface GeneratePostRequest {
   keywords?: string;
 }
 
+/** Response of POST /feed/posts/:id/summary. */
+export interface PostSummary {
+  summary: string;
+  /** 'gemini' = written by Gemini; 'extractive' = our own summarizer (key sentences of the post). */
+  source: 'gemini' | 'extractive';
+  /** true = the saved summary was returned, no AI call. */
+  cached: boolean;
+}
+
 /** AI-written draft. Not saved by the backend — it only fills the editor form. */
 export interface AiDraft {
   title: string;

@@ -5,7 +5,7 @@
 
 const { validationResult } = require('express-validator');
 const pool = require('../util/database');
-const ai = require('../util/ai');
+const { getSummary } = require('../util/summary');
 const aiService = require('../util/ai-service');
 
 const STATUS_LABEL = {
@@ -117,7 +117,7 @@ async function summarize(user, { query, latest, confidence }) {
     let post = null;
     if (latest || query) {
         const found = await pool.query(
-            `SELECT id, title, content FROM posts WHERE ${where} ORDER BY id DESC LIMIT 1`, params
+            `SELECT id, title, content, summary, summary_source FROM posts WHERE ${where} ORDER BY id DESC LIMIT 1`, params
         );
         post = found.rows[0] || null;
     }
@@ -137,7 +137,8 @@ async function summarize(user, { query, latest, confidence }) {
         };
     }
 
-    const summary = await ai.summarize(post.title, post.content);   // Gemini
+    // saved summary, or Gemini, or our own summarizer when Gemini is busy (util/summary.js)
+    const { summary } = await getSummary(post);
     return {
         ...base,
         reply: `Summary of "${post.title}":\n\n${summary}`,

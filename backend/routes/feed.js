@@ -49,7 +49,10 @@ router.patch('/posts/:postId/reject',   isAuth, hasRole('admin'),            [po
 router.patch('/posts/:postId/close',    isAuth, hasRole('creator','admin'),  [postId],          feedController.changeStatus('close'))
 
 // AI features
-router.post('/posts/:postId/summary',isAuth,aiLimiter,[postId],feedController.summarizePost)
+router.post('/posts/:postId/summary',isAuth,aiLimiter,[
+    postId,
+    body('refresh').optional().isBoolean({ strict: true }).withMessage('refresh must be true or false')
+],feedController.summarizePost)
 
 router.post('/ai/generate-post',isAuth,aiLimiter,hasRole('creator'),[
     body('topic').trim().isLength({min:3,max:200}).withMessage('Topic must be 3 to 200 characters'),

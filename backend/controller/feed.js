@@ -5,6 +5,7 @@ const {validationResult} = require('express-validator')
 const Post = require('../models/post')
 const Images = require('../util/images')   // Cloudinary in production, backend/images/ locally
 const ai = require('../util/ai')
+const { getSummary } = require('../util/summary')
 
 const TRANSITIONS = {
     submit:   { from: ['draft','clarification'], to: 'pending',       ownerOnly: true  },
@@ -279,9 +280,13 @@ exports.summarizePost = async (req,res,next)=>{
         if(!post){
             return res.status(404).json({ message:'Post Not Found!!' });
         }
-        const summary = await ai.summarize(post.title, post.content);
+        // saved summary if there is one; otherwise Gemini, falling back to our own summarizer.
+        // { "refresh": true } in the body (the "Regenerate" button) skips the saved one.
+        const result = await getSummary(post, { refresh: req.body && req.body.refresh === true });
         res.status(200).json({
-            summary:summary
+            summary: result.summary,
+            source: result.source,     // 'gemini' | 'extractive'
+            cached: result.cached      // true = returned from the database, no AI call
         })
     }catch(err){
         // AI errors already carry a statusCode (429, 503 ...); anything else is a 500

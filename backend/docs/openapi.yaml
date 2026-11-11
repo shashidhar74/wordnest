@@ -371,9 +371,20 @@ paths:
       summary: Summarize a post
       description: |
         **Any logged-in user**, for posts they may see (same rule as `GET /feed/posts/{postId}`, else 404).
-        Summarizes the post as saved in the database (3–5 sentences).
-        Nothing is stored; each call is a new Gemini request. No request body.
+        Summarizes the post as saved in the database.
+        1. A **saved summary** (posts.summary) is returned instantly, with no AI call (`cached: true`).
+        2. Otherwise, or with `refresh: true` (the Regenerate button): **Gemini**.
+        3. If Gemini is busy, down or out of quota: WordNest's **own summarizer** (key sentences, ai-service).
+        The result is saved; editing the post clears it. Limited to 30 AI requests per 10 min per user.
       security: [{ bearerAuth: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                refresh: { type: boolean, default: false, description: 'true = ignore the saved summary and make a new one' }
       responses:
         '200':
           description: Summary
@@ -383,6 +394,11 @@ paths:
                 type: object
                 properties:
                   summary: { type: string, example: This post explains how to start composting at home... }
+                  source:
+                    type: string
+                    enum: [gemini, extractive]
+                    description: gemini = written by Gemini; extractive = key sentences from our own summarizer
+                  cached: { type: boolean, description: true = the saved summary was returned (no AI call) }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '404': { $ref: '#/components/responses/NotFound' }
         '422':
