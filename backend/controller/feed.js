@@ -2,9 +2,8 @@
 // All SQL is in models/post.js.
 
 const {validationResult} = require('express-validator')
-const fs = require('fs/promises')
-const path = require('path')
 const Post = require('../models/post')
+const Images = require('../util/images')   // Cloudinary in production, backend/images/ locally
 const ai = require('../util/ai')
 
 const TRANSITIONS = {
@@ -53,11 +52,9 @@ exports.getPosts =async (req,res,next)=>{
 }
 
 exports.createPost = async (req,res,next)=>{
+    // the uploaded file is only in memory at this point, so a rejected request leaves nothing to clean up
     const errors = validationResult(req);
     if(!errors.isEmpty()){
-        if(req.file){
-        await clearImage(req.file.path);
-        }
         const error = new Error('Validation failid,entered incorrect data');
         error.statusCode = 422;
         error.data = errors.array();
@@ -68,8 +65,9 @@ exports.createPost = async (req,res,next)=>{
             message : 'Image is required (png/jpg only)'
         })
     }
-    const imgUrl = req.file.path.replace(/\\/g, '/')
+    let imgUrl;
     try {
+        imgUrl = await Images.save(req.file);   // stored only after validation passed
         const post = await Post.create({
             title: req.body.title,
             content: req.body.content,
@@ -81,7 +79,7 @@ exports.createPost = async (req,res,next)=>{
             post: post
         });
     } catch (err) {
-        await clearImage(req.file.path)
+        await Images.remove(imgUrl);   // the post wasn't saved, so don't keep its image
         if(!err.statusCode){
             err.statusCode = 500;
         }
@@ -92,71 +90,53 @@ exports.createPost = async (req,res,next)=>{
 
 exports.updatePost = async (req,res,next) => {
     const id = req.params.postId;
+    // the new file (if any) is only in memory until all checks pass, so early returns need no clean-up
     const errors = validationResult(req);
     if(!errors.isEmpty()){
-        if(req.file){
-            await clearImage(req.file.path);
-        }
         return res.status(422).json({
             message:'Validation failid,entered incorrect data',
             errors:errors.array()
         })
     }
+    let newImgUrl = null;
     try{
         const existing = await Post.findMeta(id);
         if(!existing){
-            if(req.file){
-                await clearImage(req.file.path);
-            }
             return res.status(404).json({message:'Post Not Found!!'});
         }
         if(existing.user_id !== req.userId){
-            if(req.file){
-                await clearImage(req.file.path);
-            }
             return res.status(403).json({ message: 'Not authorized' });
         }
         if(!['draft','clarification'].includes(existing.status)){
-            if(req.file){ await clearImage(req.file.path); }
             return res.status(409).json({ message:`Cannot edit a ${existing.status} post` });
         }
 
         const oldImgUrl = existing.img_url;
         // keep the old image unless a new one was uploaded
-        let newImgUrl = oldImgUrl;
         if(req.file){
-            newImgUrl = req.file.path.replace(/\\/g, '/');
+            newImgUrl = await Images.save(req.file);
         }
         const post = await Post.update(id, {
             title: req.body.title,
             content: req.body.content,
-            imgUrl: newImgUrl
+            imgUrl: newImgUrl || oldImgUrl
         });
-        if (oldImgUrl && oldImgUrl !== newImgUrl) {
-            await clearImage(oldImgUrl);
+        // delete the old image only after the UPDATE succeeded
+        if (newImgUrl && oldImgUrl && oldImgUrl !== newImgUrl) {
+            await Images.remove(oldImgUrl);
         }
         res.status(200).json({
             message:'Post Updated Sucessfully!!',
             post:post
         })
     }catch(err){
-        if(req.file){
-            await clearImage(req.file.path);
-        }
-        res.status(500).json({
-            message:'Updateing post failed',
+        await Images.remove(newImgUrl);   // the update failed: don't keep the new image
+        res.status(err.statusCode || 500).json({
+            message: err.statusCode ? err.message : 'Updateing post failed',
             error:err.message
         })
     }
 
-}
-
-const clearImage = async(filePath)=>{
-    try{
-        await fs.unlink(path.join(__dirname,'..',filePath))
-    }catch(err){
-        console.log('Could not delete image',err.message)
-    }
 }
 
 exports.getPostById = async (req,res,next)=>{
@@ -219,7 +199,7 @@ exports.deletePostById = async (req,res,next)=>{
         }
         const deleted = await Post.remove(id);
         if(deleted && deleted.img_url){
-            await clearImage(deleted.img_url);
+            await Images.remove(deleted.img_url);   // Cloudinary or the local file
         }
         res.status(200).json({
             message:'Post deleted sucessfully'

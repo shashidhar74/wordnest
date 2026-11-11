@@ -637,7 +637,11 @@ components:
           type: string
           nullable: true
           description: Leftover column, to be removed. The owner is `user_id`.
-        img_url: { type: string, nullable: true, example: images/1712345-photo.png }
+        img_url:
+          type: string
+          nullable: true
+          description: Full Cloudinary URL in production; a local path (images/…) in development
+          example: https://res.cloudinary.com/dh9skeev2/image/upload/v1794389976/wordnest/posts/hjzvupntcz1p2xpzoxlk.png
         user_id: { type: integer, nullable: true, example: 7 }
         reviewed_by: { type: integer, nullable: true }
         reviewed_at: { type: string, format: date-time, nullable: true }

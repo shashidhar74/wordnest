@@ -59,6 +59,9 @@ services:
         generateValue: true
       - key: GEMINI_API_KEY
         sync: false
+      - key: CLOUDINARY_URL      # post images (Render's disk is wiped on restart). Note: a new
+        sync: false              # sync:false key is only prompted for when the Blueprint is first
+                                 # created; on an existing service add it in the dashboard.
       - key: GEMINI_MODEL
         value: gemini-3.5-flash
       - key: AI_PROVIDER

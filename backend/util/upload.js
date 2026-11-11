@@ -1,13 +1,8 @@
 const multer = require('multer');
 
-const storage = multer.diskStorage({
-    destination:(req,file,cb)=>{
-        cb(null,'images');
-    },
-    filename:(req,file,cb)=>{
-        cb(null,Date.now() + '-' + file.originalname);
-    }
-})
+// Keep the uploaded file in memory (req.file.buffer) instead of writing it to disk.
+// util/images.js then decides where it goes: Cloudinary in production (Render's disk is wiped
+// on every restart), or the local images/ folder in development.
 
 const fileFilter = (req,file,cb)=>{
     if(['image/png','image/jpeg','image/jpg'].includes(file.mimetype)){
@@ -18,7 +13,7 @@ const fileFilter = (req,file,cb)=>{
 }
 
 module.exports = multer({
-    storage:storage,
+    storage:multer.memoryStorage(),
     fileFilter:fileFilter,
-    limits:{fileSize:2*1024*1024}
+    limits:{fileSize:2*1024*1024}   // 2 MB, so holding it in memory is fine
 })
