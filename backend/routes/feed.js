@@ -1,5 +1,6 @@
 const express = require('express');
 const feedController = require('../controller/feed')
+const coverController = require('../controller/cover')
 const {body,param, query}= require('express-validator')
 const upload = require('../util/upload')
 const isAuth = require('../middleware/is-auth')
@@ -59,5 +60,11 @@ router.post('/ai/generate-post',isAuth,aiLimiter,hasRole('creator'),[
     body('tone').optional().isIn(['formal','casual','funny','informative']).withMessage('Invalid tone'),
     body('keywords').optional().trim().isLength({max:200}).withMessage('Keywords must be under 200 characters')
 ],feedController.generatePost)
+
+// AI-designed cover image (Gemini designs, the browser draws it) — creators only
+router.post('/ai/cover-design',isAuth,aiLimiter,hasRole('creator'),[
+    body('title').isString().trim().isLength({min:3,max:200}).withMessage('Title must be 3 to 200 characters'),
+    body('content').optional().isString().isLength({max:20000}).withMessage('Content is too long')
+],coverController.design)
 
 module.exports = router;

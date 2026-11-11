@@ -1,6 +1,7 @@
 import { Component, DestroyRef, inject, input, output, signal } from '@angular/core';
 import { NgIcon } from '@ng-icons/core';
 import { ChatDraft, POST_IMAGE_MAX_BYTES, POST_IMAGE_TYPES, Post } from '../../../core/models';
+import { CoverDesigner } from '../../posts/cover-designer/cover-designer';
 import { PostService } from '../../posts/post.service';
 
 type CardState = 'open' | 'saving' | 'saved' | 'cancelled' | 'moved';
@@ -13,7 +14,7 @@ type CardState = 'open' | 'saving' | 'saved' | 'cancelled' | 'moved';
  */
 @Component({
   selector: 'app-chat-draft-card',
-  imports: [NgIcon],
+  imports: [NgIcon, CoverDesigner],
   template: `
     <article
       class="mt-1.5 rounded-md border border-line bg-surface p-3 text-sm"
@@ -21,7 +22,7 @@ type CardState = 'open' | 'saving' | 'saved' | 'cancelled' | 'moved';
     >
       <p class="mb-1 flex flex-wrap items-center gap-1.5 text-2xs text-fg-subtle uppercase">
         <ng-icon name="lucideSparkles" size="11" class="text-brand" />
-        Draft · {{ draft().tone }} · {{ draft().topic }}
+        Draft Â· {{ draft().tone }} Â· {{ draft().topic }}
       </p>
       <h3 class="font-semibold text-fg">{{ draft().title }}</h3>
       <!-- the full text, scrollable; Angular escapes it, so it can't inject HTML -->
@@ -63,6 +64,12 @@ type CardState = 'open' | 'saving' | 'saved' | 'cancelled' | 'moved';
           @if (imageError(); as err) {
             <p class="field-error">{{ err }}</p>
           }
+          <app-cover-designer
+            class="mt-2 block"
+            [title]="draft().title ?? ''"
+            [content]="draft().content ?? ''"
+            (chosen)="useImage($event)"
+          />
         </div>
 
         <div class="mt-2.5 flex flex-wrap gap-1.5">
@@ -78,7 +85,7 @@ type CardState = 'open' | 'saving' | 'saved' | 'cancelled' | 'moved';
               size="13"
               [class.animate-spin]="state() === 'saving'"
             />
-            {{ state() === 'saving' ? 'Saving…' : 'Save as draft' }}
+            {{ state() === 'saving' ? 'Savingâ€¦' : 'Save as draft' }}
           </button>
           <button
             type="button"
@@ -144,11 +151,14 @@ export class ChatDraftCard {
     inject(DestroyRef).onDestroy(() => this.setPreview(null));
   }
 
-  /** Same rules as the post editor and the backend: PNG/JPG, at most 2 MB. */
   protected pick(input: HTMLInputElement): void {
     const file = input.files?.[0];
     input.value = '';
-    if (!file) return;
+    if (file) this.useImage(file);
+  }
+
+  /** A file from the computer or an AI-picked photo. Same rules as the editor and the backend: PNG/JPG, â‰¤ 2 MB. */
+  protected useImage(file: File): void {
     if (!POST_IMAGE_TYPES.includes(file.type)) {
       this.imageError.set('Only PNG or JPG images are allowed.');
       return;

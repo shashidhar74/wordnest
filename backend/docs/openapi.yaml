@@ -600,6 +600,51 @@ paths:
               schema: { $ref: '#/components/schemas/Error' }
               example: { message: Chat is temporarily unavailable }
 
+  /feed/ai/cover-design:
+    post:
+      tags: [AI]
+      summary: Design a cover image for a post
+      description: |
+        **Creator only.** Gemini reads the post and designs a cover: a 2-colour background gradient, an accent
+        colour, a pattern (motif), one emoji and a short tagline. Every value is validated (hex colours, a known
+        motif, one emoji, at most 6 words; the title colour is corrected if it would be hard to read).
+        If Gemini is busy, a built-in palette is used (`source: preset`).
+        **The browser draws the image** (1200×630 PNG, with the title) and uploads it as the post image through
+        `POST`/`PUT /feed/posts`. No third-party images, so no licences or credits are needed.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [title]
+              properties:
+                title: { type: string, minLength: 3, maxLength: 200, example: 'How to Survive Diwali: Sweets and Sparklers' }
+                content: { type: string, maxLength: 20000 }
+      responses:
+        '200':
+          description: A cover design
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  source: { type: string, enum: [gemini, preset] }
+                  design:
+                    type: object
+                    properties:
+                      background: { type: array, items: { type: string, example: '#1E0A3C' }, minItems: 2, maxItems: 2 }
+                      accent: { type: string, example: '#F59E0B' }
+                      text: { type: string, example: '#FEF08A' }
+                      motif: { type: string, enum: [waves, dots, rays, circles, grid, diagonal, confetti, mountains] }
+                      emoji: { type: string, example: '🪔' }
+                      tagline: { type: string, example: Your ultimate festive survival guide }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429': { $ref: '#/components/responses/AiBusy' }
+
   # ---------------------------------------------------------------- Images
   /images/{file}:
     get:

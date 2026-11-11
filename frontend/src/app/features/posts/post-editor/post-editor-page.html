@@ -36,10 +36,10 @@
     <p class="mb-3 flex items-center gap-1.5 text-sm text-fg-muted">
       <ng-icon name="lucideLock" size="13" />
       @if (lockedByStatus()) {
-        Read-only — this post is {{ statusLabel() }} and can only be edited while it's a Draft or
+        Read-only â€” this post is {{ statusLabel() }} and can only be edited while it's a Draft or
         Clarification.
       } @else {
-        Read-only{{ isAdmin() ? ' — review the post and choose an action above.' : '' }}
+        Read-only{{ isAdmin() ? ' â€” review the post and choose an action above.' : '' }}
       }
     </p>
   }
@@ -130,7 +130,7 @@
               size="14"
               [class.animate-spin]="aiBusy()"
             />
-            {{ aiBusy() ? 'Writing…' : 'Generate draft' }}
+            {{ aiBusy() ? 'Writingâ€¦' : 'Generate draft' }}
           </button>
           <p class="text-xs text-fg-muted">
             Fills the title and content below. Nothing is saved until you click Save.
@@ -167,7 +167,7 @@
         class="input h-auto py-2 leading-relaxed disabled:bg-surface-2 disabled:text-fg"
         [class.input-invalid]="content.invalid && content.touched"
         formControlName="content"
-        placeholder="Write your post…"
+        placeholder="Write your postâ€¦"
       ></textarea>
       @if (content.touched && content.hasError('required')) {
         <p class="field-error">Content is required</p>
@@ -179,7 +179,7 @@
       <span class="label">
         Image
         @if (id() && !readOnly()) {
-          <span class="font-normal text-fg-muted">(optional — keeps the current image)</span>
+          <span class="font-normal text-fg-muted">(optional â€” keeps the current image)</span>
         }
       </span>
 
@@ -224,7 +224,7 @@
           </div>
           @if (imageFile(); as f) {
             <p class="mt-1 text-xs text-fg-muted">
-              {{ f.name }} · {{ (f.size / 1024).toFixed(0) }} KB
+              {{ f.name }} Â· {{ (f.size / 1024).toFixed(0) }} KB
             </p>
           }
         } @else {
@@ -244,12 +244,22 @@
         @if (imageError(); as err) {
           <p class="field-error">{{ err }}</p>
         }
+
+        <!-- AI-designed cover (creators): uses the same checks and upload as a chosen file -->
+        @if (isCreator()) {
+          <app-cover-designer
+            class="mt-2 block"
+            [title]="form.controls.title.value"
+            [content]="form.controls.content.value"
+            (chosen)="useImage($event)"
+          />
+        }
       }
     </div>
 
     @if (post(); as p) {
       <p class="border-t border-line pt-3 text-xs text-fg-muted">
-        By {{ p.author.name }} · created {{ p.createdAt | date: 'MMM d, y' }} · updated
+        By {{ p.author.name }} Â· created {{ p.createdAt | date: 'MMM d, y' }} Â· updated
         {{ p.updatedAt | date: 'MMM d, y, h:mm a' }}
       </p>
     }

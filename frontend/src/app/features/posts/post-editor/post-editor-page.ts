@@ -32,6 +32,7 @@ import { StatusPill } from '../../../shared/components/status-pill/status-pill';
 import { AutofocusDirective } from '../../../shared/directives/autofocus.directive';
 import { CharCountDirective } from '../../../shared/directives/char-count.directive';
 import { AiSummary } from '../ai-summary/ai-summary';
+import { CoverDesigner } from '../cover-designer/cover-designer';
 import { PostComments } from '../comments/post-comments';
 import { PostService } from '../post.service';
 import { ReviewNote } from '../review-note/review-note';
@@ -40,17 +41,17 @@ import postActions from './post-actions.json';
 /** One button from post-actions.json. */
 interface ActionButton {
   label: string;
-  /** Name of the handler to call — must be a key of `handlers` in PostEditorPage. */
+  /** Name of the handler to call â€” must be a key of `handlers` in PostEditorPage. */
   functionName: string;
   style: 'primary' | 'success' | 'warning' | 'danger' | 'outline' | 'outline-danger';
   icon?: string;
-  /** Hide on /posts/new (e.g. Delete, Approve — they need a saved post). */
+  /** Hide on /posts/new (e.g. Delete, Approve â€” they need a saved post). */
   existingOnly?: boolean;
   /** Hide while the form is locked by status (e.g. Save/Submit on a pending post). */
   editableOnly?: boolean;
   /** Show only when the post is in one of these statuses (a new post counts as "draft"). */
   statuses?: PostStatus[];
-  /** "Are you sure?" popup shown before the action runs. `{title}` → the post's title. */
+  /** "Are you sure?" popup shown before the action runs. `{title}` â†’ the post's title. */
   confirm?: Omit<ConfirmDialogData, 'danger' | 'confirmClass'>;
 }
 
@@ -66,10 +67,10 @@ interface RoleConfig {
 
 /** Role-wise buttons and form mode, kept in JSON so they can change without touching the template. */
 const ROLE_CONFIG = postActions as Record<string, RoleConfig>;
-/** Unknown or missing role → read-only with no buttons (safest default). */
+/** Unknown or missing role â†’ read-only with no buttons (safest default). */
 const NO_ACCESS: RoleConfig = { readOnly: true, buttons: [] };
 
-/** `style` in post-actions.json → CSS class (defined in tailwind.css). */
+/** `style` in post-actions.json â†’ CSS class (defined in tailwind.css). */
 const STYLE_CLASS: Record<ActionButton['style'], string> = {
   primary: 'btn-primary', //      blue
   success: 'btn-success', //      green
@@ -94,6 +95,7 @@ const STYLE_CLASS: Record<ActionButton['style'], string> = {
     ReviewNote,
     AiSummary,
     PostComments,
+    CoverDesigner,
     AutofocusDirective,
     CharCountDirective,
   ],
@@ -107,14 +109,14 @@ export class PostEditorPage {
   private readonly confirm = inject(ConfirmService);
   private readonly auth = inject(AuthService);
   readonly id = input<string>();
-  /** `?topic=` from the chat assistant ("Open editor") → opens Write with AI with it filled in. */
+  /** `?topic=` from the chat assistant ("Open editor") â†’ opens Write with AI with it filled in. */
   readonly topic = input<string>();
 
   protected readonly post = signal<Post | null>(null);
   protected readonly busy = signal(false);
 
   /**
-   * `functionName` in post-actions.json → method that runs. To add a button: add an entry
+   * `functionName` in post-actions.json â†’ method that runs. To add a button: add an entry
    * here, then reference its name in the JSON.
    */
   private readonly handlers: Record<string, (comment: string) => void> = {
@@ -122,7 +124,7 @@ export class PostEditorPage {
     save: () => this.save(),
     submit: () => this.submit(),
     delete: () => this.delete(),
-    // Workflow — PATCH /feed/posts/:id/<action>
+    // Workflow â€” PATCH /feed/posts/:id/<action>
     close: () => this.workflow((id) => this.postsApi.close(id), 'Post closed'),
     approve: () => this.workflow((id) => this.postsApi.approve(id), 'Post approved and published'),
     reject: (comment) => this.workflow((id) => this.postsApi.reject(id, comment), 'Post rejected'),
@@ -146,6 +148,8 @@ export class PostEditorPage {
   });
   protected readonly readOnly = computed(() => this.roleConfig().readOnly || this.lockedByStatus());
   protected readonly isAdmin = computed(() => this.auth.role() === 'admin');
+  /** The AI cover picker is for creators (the backend allows only them). */
+  protected readonly isCreator = computed(() => this.auth.role() === 'creator');
 
   /** Buttons for the current role, minus ones that don't apply (new post / locked form). */
   protected readonly buttons = computed(() =>
@@ -240,7 +244,7 @@ export class PostEditorPage {
       this.form.setValue({ title: draft.title, content: draft.content });
       this.form.markAsDirty();
       this.aiOpen.set(false);
-      this.notify.success('AI draft added — review it, add an image, then save.');
+      this.notify.success('AI draft added â€” review it, add an image, then save.');
     };
     if (!title.trim() && !content.trim()) {
       fill();
@@ -257,7 +261,7 @@ export class PostEditorPage {
       .subscribe(fill);
   }
 
-  // Image — kept outside the reactive form: a file input doesn't map well onto a FormControl.
+  // Image â€” kept outside the reactive form: a file input doesn't map well onto a FormControl.
   protected readonly acceptTypes = POST_IMAGE_TYPES.join(',');
   protected readonly imageFile = signal<File | null>(null);
   protected readonly imageError = signal<string | null>(null);
@@ -286,7 +290,7 @@ export class PostEditorPage {
       });
     });
 
-    // Coming from the chat with a topic → open the AI panel, ready to generate.
+    // Coming from the chat with a topic â†’ open the AI panel, ready to generate.
     effect(() => {
       const topic = this.topic()?.trim();
       if (!topic || !this.canGenerate()) return;
@@ -306,8 +310,11 @@ export class PostEditorPage {
   protected onImageSelected(input: HTMLInputElement): void {
     const file = input.files?.[0];
     input.value = ''; // so picking the same file again still fires (change)
-    if (!file) return;
+    if (file) this.useImage(file);
+  }
 
+  /** A file from the computer or a photo chosen in the AI cover picker: same checks either way. */
+  protected useImage(file: File): void {
     if (!POST_IMAGE_TYPES.includes(file.type)) {
       this.imageError.set('Only PNG or JPG images are allowed.');
       return;
@@ -343,7 +350,7 @@ export class PostEditorPage {
 
   /**
    * Submit: save the latest edits (create the post first if it's new), then
-   * PATCH /feed/posts/:id/submit → pending.
+   * PATCH /feed/posts/:id/submit â†’ pending.
    */
   protected submit(): void {
     if (!this.validate()) return;
@@ -351,7 +358,7 @@ export class PostEditorPage {
       this.saveRequest(this.post()?.status ?? 'draft').pipe(
         switchMap((saved) => this.postsApi.submit(saved.id)),
       ),
-    ).subscribe(() => this.finish('Post submitted — pending approval'));
+    ).subscribe(() => this.finish('Post submitted â€” pending approval'));
   }
 
   /** Delete: the "Are you sure?" popup comes from post-actions.json (see trigger()). */

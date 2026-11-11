@@ -20,6 +20,7 @@ export const API_ENDPOINTS = {
   ai: {
     // POST /feed/posts/:id/summary is built from `posts` in PostService.
     generatePost: '/feed/ai/generate-post',
+    coverDesign: '/feed/ai/cover-design',
   },
   // Threaded comments (backend routes/comments.js, mounted at /feed)
   comments: {

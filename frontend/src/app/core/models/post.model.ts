@@ -82,6 +82,30 @@ export interface PostSummary {
   cached: boolean;
 }
 
+export type CoverMotif =
+  'waves' | 'dots' | 'rays' | 'circles' | 'grid' | 'diagonal' | 'confetti' | 'mountains';
+
+/** A cover design chosen by Gemini (validated by the backend); the browser draws it. */
+export interface CoverDesign {
+  /** 2-colour gradient, '#RRGGBB'. */
+  background: [string, string];
+  /** Pattern colour. */
+  accent: string;
+  /** Title colour, readable on the background. */
+  text: string;
+  motif: CoverMotif;
+  /** One emoji, or '' */
+  emoji: string;
+  /** Up to 6 words, or '' */
+  tagline: string;
+}
+
+/** Response of POST /feed/ai/cover-design. source 'preset' = Gemini was busy, a built-in palette was used. */
+export interface CoverDesignResponse {
+  design: CoverDesign;
+  source: 'gemini' | 'preset';
+}
+
 /** AI-written draft. Not saved by the backend — it only fills the editor form. */
 export interface AiDraft {
   title: string;
