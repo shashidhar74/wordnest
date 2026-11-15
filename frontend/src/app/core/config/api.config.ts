@@ -29,4 +29,16 @@ export const API_ENDPOINTS = {
   },
   // Blog chatbot. Faked by the mock backend while `environment.mock.chat` is true.
   chat: '/chat',
+  // Dashboard numbers (backend routes/analytics.js, mounted at /analytics)
+  analytics: {
+    stats: '/analytics/stats',
+    postsPerMonth: '/analytics/posts-per-month',
+    reviewTime: '/analytics/review-time',
+    topAuthors: '/analytics/top-authors',
+    commentActivity: '/analytics/comment-activity',
+    aiSummaries: '/analytics/ai-summaries',
+    reviewFlow: '/analytics/review-flow',
+    oldestPosts: '/analytics/oldest-posts',
+    insights: '/analytics/insights',
+  },
 } as const;

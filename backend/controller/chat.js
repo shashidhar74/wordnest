@@ -8,6 +8,7 @@ const pool = require('../util/database');
 const { getSummary } = require('../util/summary');
 const ai = require('../util/ai');                  // Gemini: writes post drafts
 const aiService = require('../util/ai-service');
+const { getInsights, asText: insightsAsText } = require('../util/dashboard-insights');
 
 const STATUS_LABEL = {
     draft: 'Draft', pending: 'Pending', clarification: 'Clarification',
@@ -35,6 +36,12 @@ exports.chat = async (req, res, next) => {
         }
         if (awaiting === 'post_tone') {
             return res.json(await createPost(user, { topic: draft.topic, tone: toneIn(message) || 'informative' }, 1));
+        }
+
+        // "summarize the dashboard", "how is the blog doing?" → the dashboard summary.
+        // A keyword check before the intent model, which wasn't trained on this.
+        if (DASHBOARD.test(message)) {
+            return res.json(await dashboardSummary(message));
         }
 
         const { intent, confidence } = await aiService.classify(message);
@@ -115,6 +122,26 @@ async function findPosts(message) {
     return { reply, posts };
 }
 
+// ---- dashboard_summary ----------------------------------------------------------------
+// Same summary as the dashboard's "Summarize" button (util/dashboard-insights.js).
+
+const DASHBOARD = /\b(dashboard|analytics|insights?|how is the blog doing|how('?s| is) (the )?blog (doing|going))\b/i;
+
+async function dashboardSummary(message) {
+    // "3 months" / "this quarter" → 3, "last year" / "12 months" → 12, otherwise 6
+    const months = /\b(3|three)\s*months?\b|\bquarter\b/i.test(message) ? 3
+        : /\b(12|twelve)\s*months?\b|\byear\b/i.test(message) ? 12 : 6;
+    const insights = await getInsights(months);
+    return {
+        intent: 'dashboard_summary',
+        confidence: 1,
+        reply: `Dashboard, last ${months} months:\n\n${insightsAsText(insights)}`,
+        suggestions: months === 6
+            ? ['Dashboard for 3 months', 'Dashboard for 12 months', 'How many posts are pending?']
+            : ['Dashboard for 6 months', 'How many posts are pending?'],
+    };
+}
+
 // ---- summarize_post -------------------------------------------------------------------
 
 const ORDINAL = /\b(1st|first|latest|newest|last|recent|top)\b/i;
@@ -131,8 +158,11 @@ async function summarize(user, { query, latest, confidence }) {
     const params = [];
     let where = visibleToReader(user, params);
     if (query && !latest) {
-        params.push(`%${query}%`);
-        where += ` AND title ILIKE $${params.length}`;
+        // Every word must appear in the title, in any order: "filter coffee" finds
+        // "Filter coffee at home", and "tea gardens munnar" still finds "Tea gardens of Munnar".
+        const words = query.split(/\s+/).filter((w) => w.length >= 2);
+        params.push(words.map((w) => `%${w}%`));
+        where += ` AND title ILIKE ALL($${params.length})`;
     }
 
     let post = null;
@@ -414,7 +444,7 @@ function extractTitle(message) {
     const rest = message
         .replace(/^(please\s+|pls\s+|can you\s+)/i, '')
         .replace(/\b(summari[sz]e|summary( of)?|tl;?dr( of)?|sum up|gist( of)?|recap( of)?|key points( of| from)?)\b/gi, '')
-        .replace(/\b(the|this|that|a|me|for|of|post|article|blog|called|titled|named|please|pls)\b/gi, '')
+        .replace(/\b(the|this|that|a|me|for|of|post|article|blog|called|titled|named|please|pls|about|on|regarding)\b/gi, '')
         .replace(ORDINAL, '');
     const title = cleanText(rest);
     return title.length >= 3 ? title : undefined;

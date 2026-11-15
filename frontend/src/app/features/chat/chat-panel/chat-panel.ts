@@ -41,6 +41,7 @@ const INTENT_LABEL: Record<ChatIntent, string> = {
   site_help: 'Help',
   greeting: 'Greeting',
   out_of_scope: 'Out of scope',
+  dashboard_summary: 'Dashboard',
 };
 
 /** First chips, by role. "…" = goes into the input to finish typing instead of being sent. */
@@ -51,21 +52,21 @@ function starters(role: string | undefined): string[] {
         'Write a post about…',
         'Status report of my posts',
         'Why was my post rejected?',
-        'Show latest posts',
+        'Summarize the dashboard',
       ];
     case 'admin':
       return [
+        'Summarize the dashboard',
         'Status report of all posts',
         'How many posts are pending?',
         'Download all posts as CSV',
-        'Show latest posts',
       ];
     default:
       return [
         'Show latest posts',
         'Find posts about…',
         'Summarize the latest post',
-        'How many posts are there?',
+        'Summarize the dashboard',
       ];
   }
 }

@@ -41,7 +41,8 @@ async function findWithAuthor(id) {
 // ---- reading ---------------------------------------------------------------------------
 
 // Paged list, newest first. search = title contains (case-insensitive); status = exact status.
-// Returns { posts, total }.
+// Returns { posts, total, statusCounts }. statusCounts = how many posts per status this viewer can see
+// with the same search but WITHOUT the status filter, so the status tabs can all show their number.
 exports.list = async ({ viewer, search, status, page = 1, limit = 10 }) => {
     const params = [];
     const where = [visibleTo(viewer, params)];
@@ -49,6 +50,15 @@ exports.list = async ({ viewer, search, status, page = 1, limit = 10 }) => {
         params.push(`%${search}%`);
         where.push(`p.title ILIKE $${params.length}`);
     }
+
+    // Counts per status: run now, before the status filter is added to `where`
+    const byStatus = await pool.query(
+        `SELECT p.status, COUNT(*)::int AS count FROM posts p WHERE ${where.join(' AND ')} GROUP BY p.status`,
+        [...params]
+    );
+    const statusCounts = { draft: 0, pending: 0, clarification: 0, published: 0, rejected: 0, closed: 0 };
+    byStatus.rows.forEach(row => { statusCounts[row.status] = row.count; });
+
     if (status) {
         params.push(status);
         where.push(`p.status = $${params.length}`);
@@ -65,7 +75,7 @@ exports.list = async ({ viewer, search, status, page = 1, limit = 10 }) => {
     const result = await pool.query(
         `SELECT ${POST_COLUMNS} ${FROM_POSTS}${whereSql} ORDER BY p.id DESC${limitSql}${offsetSql}`, params
     );
-    return { posts: result.rows, total };
+    return { posts: result.rows, total, statusCounts };
 };
 
 // One post the viewer may see, or null (not found OR not allowed: the caller answers 404 for both,
@@ -86,11 +96,17 @@ exports.findMeta = async (id) => {
 // ---- writing ---------------------------------------------------------------------------
 
 // New posts always start as draft; the owner comes from the token (never from the request body).
+// One statement does both: insert the post, then its first history row (NULL → draft).
 exports.create = async ({ title, content, imgUrl, userId }) => {
     const result = await pool.query(
         // `author` is a leftover column (see PROJECT_NOTES open tasks); kept empty until it's dropped
-        `INSERT INTO posts (title, content, status, author, img_url, user_id)
-         VALUES ($1, $2, 'draft', '', $3, $4) RETURNING id`,
+        `WITH new_post AS (
+            INSERT INTO posts (title, content, status, author, img_url, user_id)
+            VALUES ($1, $2, 'draft', '', $3, $4) RETURNING id, user_id
+         )
+         INSERT INTO post_status_history (post_id, from_status, to_status, changed_by)
+         SELECT id, NULL, 'draft', user_id FROM new_post
+         RETURNING post_id AS id`,
         [title, content, imgUrl, userId]
     );
     return findWithAuthor(result.rows[0].id);
@@ -122,19 +138,38 @@ exports.remove = async (id) => {
     return result.rows[0] || null;
 };
 
-// Workflow step. Repeats the "from" check inside the UPDATE, so if two people act at the same
+// Workflow step. Repeats the "from" check inside the statement, so if two people act at the same
 // moment only one wins; the other gets null (→ 409 "status has changed").
 // Review columns are only filled when an admin acts (isReview).
+// One statement, three steps (so the post and its history always change together):
+//   old     → lock the post if it is still in an allowed status, remember that status
+//   updated → change the post
+//   INSERT  → add the history row (old status → new status, who, comment)
+// reviewerId is whoever acts (owner or admin).
 exports.changeStatus = async (id, { from, to, comment, isReview, reviewerId }) => {
     const result = await pool.query(
-        `UPDATE posts
-         SET status = $1,
-             review_comment = CASE WHEN $2::text IS NOT NULL THEN $2 ELSE review_comment END,
-             reviewed_by    = CASE WHEN $3 THEN $4::int ELSE reviewed_by END,
-             reviewed_at    = CASE WHEN $3 THEN NOW() ELSE reviewed_at END
-         WHERE id = $5 AND status = ANY($6)
-         RETURNING id`,
+        `WITH old AS (
+            SELECT id, status FROM posts
+            WHERE id = $5 AND status = ANY($6)
+            FOR UPDATE
+         ),
+         updated AS (
+            UPDATE posts p
+            SET status = $1,
+                review_comment = CASE WHEN $2::text IS NOT NULL THEN $2 ELSE p.review_comment END,
+                reviewed_by    = CASE WHEN $3 THEN $4::int ELSE p.reviewed_by END,
+                reviewed_at    = CASE WHEN $3 THEN NOW() ELSE p.reviewed_at END
+            FROM old
+            WHERE p.id = old.id
+            RETURNING p.id, old.status AS from_status
+         )
+         INSERT INTO post_status_history (post_id, from_status, to_status, changed_by, comment)
+         SELECT id, from_status, $1, $4::int, $2::text FROM updated
+         RETURNING post_id AS id`,
         [to, comment ?? null, isReview, reviewerId, id, from]
     );
     return result.rows[0] ? findWithAuthor(id) : null;
 };
+
+// Shared with models/stats.js, so lists of posts on the dashboard follow the same visibility rule.
+exports.visibleTo = visibleTo;

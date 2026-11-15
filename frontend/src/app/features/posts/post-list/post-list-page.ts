@@ -47,6 +47,12 @@ export class PostListPage {
 
   protected readonly rows = signal<Post[]>([]);
   protected readonly total = signal(0);
+  /** Numbers on the status tabs (posts this user can see, same search). Undefined = not known yet. */
+  protected readonly statusCounts = signal<Record<PostStatus, number> | undefined>(undefined);
+  protected readonly allCount = computed(() => {
+    const counts = this.statusCounts();
+    return counts ? Object.values(counts).reduce((sum, n) => sum + n, 0) : undefined;
+  });
   protected readonly page = signal(1);
   protected readonly limit = signal(10);
   protected readonly loading = signal(true);
@@ -120,6 +126,7 @@ export class PostListPage {
         next: (res) => {
           this.rows.set(res.data);
           this.total.set(res.total);
+          this.statusCounts.set(res.statusCounts);
           this.loading.set(false);
         },
         error: () => this.loading.set(false),

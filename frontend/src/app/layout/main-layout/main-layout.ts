@@ -57,8 +57,27 @@ export class MainLayout {
   );
   protected readonly sidebarOpen = signal(true);
 
+  /**
+   * Pages are centred at max 1200px (comfortable for reading). A route can use the full width
+   * instead with `data: { fullWidth: true }`, e.g. the dashboard.
+   */
+  protected readonly fullWidth = toSignal(
+    this.router.events.pipe(
+      filter((e) => e instanceof NavigationEnd),
+      map(() => this.deepestRouteData()['fullWidth'] === true),
+    ),
+    { initialValue: this.deepestRouteData()['fullWidth'] === true },
+  );
+
+  private deepestRouteData(): Record<string, unknown> {
+    let route = this.router.routerState.snapshot.root;
+    while (route.firstChild) route = route.firstChild;
+    return route.data;
+  }
+
   /** "New post" is only for creators. */
   protected readonly nav = computed<NavLink[]>(() => [
+    { label: 'Dashboard', icon: 'lucideLayoutDashboard', route: '/dashboard', exact: true },
     { label: 'All posts', icon: 'lucideNewspaper', route: '/posts', exact: true },
     ...(this.auth.role() === 'creator'
       ? [{ label: 'New post', icon: 'lucidePlus', route: '/posts/new', exact: true }]

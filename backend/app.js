@@ -7,6 +7,7 @@ const path = require('path')
 const authRoutes = require('./routes/auth')
 const chatRoutes = require('./routes/chat')
 const commentRoutes = require('./routes/comments')
+const analyticsRoutes = require('./routes/analytics')
 const fs = require('fs')
 const YAML = require('yaml')
 const swaggerUi = require('swagger-ui-express')
@@ -24,6 +25,7 @@ app.use('/auth',authRoutes);
 app.use('/feed',feedRoutes);
 app.use('/feed',commentRoutes);   // /feed/posts/:postId/comments, /feed/comments/:commentId
 app.use('/chat',chatRoutes);   // blog chatbot: our intent model (ai-service) + DB + Gemini
+app.use('/analytics',analyticsRoutes);   // /analytics/stats
 
 // API docs: Swagger UI at /docs, raw spec at /docs/openapi.json (source: docs/openapi.yaml)
 const openapi = YAML.parse(fs.readFileSync(path.join(__dirname,'docs','openapi.yaml'),'utf8'));

@@ -1,3 +1,5 @@
+import { Paginated } from './api.model';
+
 /**
  * Workflow — matches the backend's PATCH /feed/posts/:id/<action> endpoints:
  *   creator: draft | clarification → Submit → pending
@@ -58,6 +60,13 @@ export interface PostListResponse {
   total?: number;
   page?: number;
   limit?: number;
+  /** Posts per status this user can see (same search, status filter ignored), for the tab numbers. */
+  statusCounts?: Record<PostStatus, number>;
+}
+
+/** A page of posts, plus the per-status numbers for the filter tabs (missing from the mock backend). */
+export interface PostPage extends Paginated<Post> {
+  statusCounts?: Record<PostStatus, number>;
 }
 
 // ---- AI (backend util/ai.js) -------------------------------------------------

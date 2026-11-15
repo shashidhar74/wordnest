@@ -1,16 +1,8 @@
--- WordNest database STRUCTURE (no data): tables, keys, indexes, checks, sequences.
--- Generated from the local database with:
---   pg_dump --schema-only --no-owner --no-acl
--- Regenerate after every table change, and commit it (see backend/db/README.md).
---
--- Build an EMPTY database from it:
---   psql -h <host> -p <port> -U <user> -d <new_empty_db> -f backend/db/schema.sql
-
 --
 -- PostgreSQL database dump
 --
 
-\restrict A03nBPfCV2xrAqDT6pqfv0lmKnq7vOs7WzGwMNpcl3HtIuOsNkaJfv8jQ1E6tr9
+\restrict ek15pO0Mm4kh5PVwj5PyOqdvcq2r8JAiZbBdEeAbRbzBP8o5V5QLgWwfjjiqaei
 
 -- Dumped from database version 17.6
 -- Dumped by pg_dump version 17.6
@@ -80,6 +72,43 @@ CREATE SEQUENCE public.comments_id_seq
 --
 
 ALTER SEQUENCE public.comments_id_seq OWNED BY public.comments.id;
+
+
+--
+-- Name: post_status_history; Type: TABLE; Schema: public; Owner: -
+--
+
+CREATE TABLE public.post_status_history (
+    id integer NOT NULL,
+    post_id integer NOT NULL,
+    from_status text,
+    to_status text NOT NULL,
+    changed_by integer,
+    comment text,
+    changed_at timestamp with time zone DEFAULT now() NOT NULL,
+    CONSTRAINT post_status_history_from_check CHECK (((from_status IS NULL) OR (from_status = ANY (ARRAY['draft'::text, 'pending'::text, 'clarification'::text, 'published'::text, 'rejected'::text, 'closed'::text])))),
+    CONSTRAINT post_status_history_to_check CHECK ((to_status = ANY (ARRAY['draft'::text, 'pending'::text, 'clarification'::text, 'published'::text, 'rejected'::text, 'closed'::text])))
+);
+
+
+--
+-- Name: post_status_history_id_seq; Type: SEQUENCE; Schema: public; Owner: -
+--
+
+CREATE SEQUENCE public.post_status_history_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+--
+-- Name: post_status_history_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: -
+--
+
+ALTER SEQUENCE public.post_status_history_id_seq OWNED BY public.post_status_history.id;
 
 
 --
@@ -170,6 +199,13 @@ ALTER TABLE ONLY public.comments ALTER COLUMN id SET DEFAULT nextval('public.com
 
 
 --
+-- Name: post_status_history id; Type: DEFAULT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_status_history ALTER COLUMN id SET DEFAULT nextval('public.post_status_history_id_seq'::regclass);
+
+
+--
 -- Name: posts id; Type: DEFAULT; Schema: public; Owner: -
 --
 
@@ -189,6 +225,14 @@ ALTER TABLE ONLY public.users ALTER COLUMN id SET DEFAULT nextval('public.users_
 
 ALTER TABLE ONLY public.comments
     ADD CONSTRAINT comments_pkey PRIMARY KEY (id);
+
+
+--
+-- Name: post_status_history post_status_history_pkey; Type: CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_status_history
+    ADD CONSTRAINT post_status_history_pkey PRIMARY KEY (id);
 
 
 --
@@ -230,6 +274,20 @@ CREATE INDEX comments_post_idx ON public.comments USING btree (post_id, created_
 
 
 --
+-- Name: idx_post_status_history_changed_at; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_post_status_history_changed_at ON public.post_status_history USING btree (changed_at);
+
+
+--
+-- Name: idx_post_status_history_post; Type: INDEX; Schema: public; Owner: -
+--
+
+CREATE INDEX idx_post_status_history_post ON public.post_status_history USING btree (post_id, changed_at);
+
+
+--
 -- Name: posts posts_updated_on; Type: TRIGGER; Schema: public; Owner: -
 --
 
@@ -261,6 +319,22 @@ ALTER TABLE ONLY public.comments
 
 
 --
+-- Name: post_status_history post_status_history_changed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_status_history
+    ADD CONSTRAINT post_status_history_changed_by_fkey FOREIGN KEY (changed_by) REFERENCES public.users(id) ON DELETE SET NULL;
+
+
+--
+-- Name: post_status_history post_status_history_post_id_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
+--
+
+ALTER TABLE ONLY public.post_status_history
+    ADD CONSTRAINT post_status_history_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.posts(id) ON DELETE CASCADE;
+
+
+--
 -- Name: posts posts_reviewed_by_fkey; Type: FK CONSTRAINT; Schema: public; Owner: -
 --
 
@@ -280,5 +354,5 @@ ALTER TABLE ONLY public.posts
 -- PostgreSQL database dump complete
 --
 
-\unrestrict A03nBPfCV2xrAqDT6pqfv0lmKnq7vOs7WzGwMNpcl3HtIuOsNkaJfv8jQ1E6tr9
+\unrestrict ek15pO0Mm4kh5PVwj5PyOqdvcq2r8JAiZbBdEeAbRbzBP8o5V5QLgWwfjjiqaei
 

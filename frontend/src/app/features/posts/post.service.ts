@@ -4,9 +4,9 @@ import { API_BASE_URL, API_ENDPOINTS } from '../../core/config/api.config';
 import {
   AiDraft,
   GeneratePostRequest,
-  Paginated,
   Post,
   PostListResponse,
+  PostPage,
   PostSummary,
   PostQuery,
   SavePostDto,
@@ -19,13 +19,14 @@ export class PostService {
   private readonly baseUrl = inject(API_BASE_URL);
   private readonly path = API_ENDPOINTS.posts;
 
-  list(query: PostQuery = {}): Observable<Paginated<Post>> {
+  list(query: PostQuery = {}): Observable<PostPage> {
     return this.api.get<PostListResponse>(this.path, { params: { ...query } }).pipe(
       map((res) => ({
         data: (res.posts ?? []).map((p, i) => withDefaults(p, i, this.baseUrl)),
         total: res.total ?? res.posts?.length ?? 0,
         page: res.page ?? query.page ?? 1,
         limit: res.limit ?? query.limit ?? 10,
+        statusCounts: res.statusCounts,
       })),
     );
   }

@@ -31,7 +31,7 @@ exports.getPosts =async (req,res,next)=>{
     const limit = req.query.limit || 10;
     try{
         // guests and users only get published posts; creators also their own; admins everything
-        const { posts, total } = await Post.list({
+        const { posts, total, statusCounts } = await Post.list({
             viewer: viewerOf(req),
             search: req.query.search,
             status: req.query.status,
@@ -42,7 +42,8 @@ exports.getPosts =async (req,res,next)=>{
             posts:posts,
             limit:limit,
             total:total,
-            totalPages:Math.ceil(total / limit)
+            totalPages:Math.ceil(total / limit),
+            statusCounts:statusCounts   // per status, for the tab numbers (ignores the status filter)
         })
     }catch(err){
         res.status(500).json({

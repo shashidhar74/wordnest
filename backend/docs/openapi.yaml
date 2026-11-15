@@ -30,6 +30,8 @@ tags:
     description: Uploaded post images
   - name: Chat
     description: "Blog chatbot: our intent model (ai-service on :8000) + database + Gemini"
+  - name: Analytics
+    description: Dashboard numbers (same for every logged-in user)
 
 paths:
   # ---------------------------------------------------------------- Auth
@@ -147,6 +149,18 @@ paths:
                   limit: { type: integer, example: 10 }
                   total: { type: integer, example: 23 }
                   totalPages: { type: integer, example: 3 }
+                  statusCounts:
+                    type: object
+                    description: |
+                      Posts per status that this viewer can see, with the same `search` but ignoring
+                      the `status` filter (for the numbers on the status tabs).
+                    properties:
+                      draft:         { type: integer, example: 4 }
+                      pending:       { type: integer, example: 1 }
+                      clarification: { type: integer, example: 2 }
+                      published:     { type: integer, example: 20 }
+                      rejected:      { type: integer, example: 7 }
+                      closed:        { type: integer, example: 8 }
         '422': { $ref: '#/components/responses/ValidationError' }
         '500': { $ref: '#/components/responses/ServerError' }
 
@@ -663,6 +677,369 @@ paths:
               schema: { $ref: '#/components/schemas/Message' }
         '401': { $ref: '#/components/responses/Unauthorized' }
 
+  # ---------------------------------------------------------------- Analytics
+  /analytics/stats:
+    get:
+      tags: [Analytics]
+      summary: Dashboard statistics
+      description: |
+        **Any logged-in user.** Post counts per status, for posts created in the
+        last `months` months (the period starts on the 1st of a month).
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: months
+          in: query
+          required: false
+          schema: { type: integer, enum: [3, 6, 12], default: 6 }
+      responses:
+        '200':
+          description: Statistics for the period
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  months: { type: integer, example: 6 }
+                  statusCounts:
+                    type: object
+                    properties:
+                      draft:         { type: integer, example: 3 }
+                      pending:       { type: integer, example: 5 }
+                      clarification: { type: integer, example: 1 }
+                      published:     { type: integer, example: 24 }
+                      rejected:      { type: integer, example: 4 }
+                      closed:        { type: integer, example: 2 }
+                  previousTotal:
+                    type: integer
+                    example: 31
+                    description: Posts created in the period just before this one (for "vs previous period")
+                  waiting:
+                    type: object
+                    description: Posts waiting for an admin right now (pending + clarification), any age
+                    properties:
+                      count:      { type: integer, example: 6 }
+                      oldestDays: { type: integer, nullable: true, example: 9, description: 'null when nothing is waiting' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /analytics/posts-per-month:
+    get:
+      tags: [Analytics]
+      summary: Posts created per month, by status
+      description: |
+        **Any logged-in user.** One entry per month of the period, oldest first, with a count
+        for each status. Months with no posts are included with all counts 0.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: months
+          in: query
+          required: false
+          schema: { type: integer, enum: [3, 6, 12], default: 6 }
+      responses:
+        '200':
+          description: One entry per month
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  months: { type: integer, example: 3 }
+                  postsPerMonth:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        month:         { type: string, example: '2026-09', description: 'YYYY-MM' }
+                        draft:         { type: integer, example: 0 }
+                        pending:       { type: integer, example: 0 }
+                        clarification: { type: integer, example: 0 }
+                        published:     { type: integer, example: 1 }
+                        rejected:      { type: integer, example: 0 }
+                        closed:        { type: integer, example: 1 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /analytics/review-time:
+    get:
+      tags: [Analytics]
+      summary: Average time to review
+      description: |
+        **Any logged-in user.** Average hours from creating a post to its latest admin review
+        (send back, approve or reject), grouped by the month the review happened.
+        `avgHours` is `null` for months with no reviews. This is an approximation: the start is
+        when the draft was created, not when it was submitted.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: months
+          in: query
+          required: false
+          schema: { type: integer, enum: [3, 6, 12], default: 6 }
+      responses:
+        '200':
+          description: Review time, overall and per month
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  months:      { type: integer, example: 6 }
+                  targetHours: { type: integer, example: 24 }
+                  overall:
+                    type: object
+                    properties:
+                      avgHours: { type: number, nullable: true, example: 18.4 }
+                      reviewed: { type: integer, example: 12 }
+                  perMonth:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        month:    { type: string, example: '2026-09' }
+                        avgHours: { type: number, nullable: true, example: 31.2 }
+                        reviewed: { type: integer, example: 2 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /analytics/top-authors:
+    get:
+      tags: [Analytics]
+      summary: Authors with the most posts
+      description: |
+        **Any logged-in user.** Authors ranked by posts created in the period, with a count per status.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: months
+          in: query
+          required: false
+          schema: { type: integer, enum: [3, 6, 12], default: 6 }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 50, default: 5 }
+      responses:
+        '200':
+          description: Authors, most posts first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  months: { type: integer, example: 6 }
+                  authors:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:            { type: integer, example: 1 }
+                        name:          { type: string, example: Shashi }
+                        total:         { type: integer, example: 5 }
+                        draft:         { type: integer, example: 0 }
+                        pending:       { type: integer, example: 1 }
+                        clarification: { type: integer, example: 0 }
+                        published:     { type: integer, example: 2 }
+                        rejected:      { type: integer, example: 1 }
+                        closed:        { type: integer, example: 1 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /analytics/comment-activity:
+    get:
+      tags: [Analytics]
+      summary: New comments per week
+      description: |
+        **Any logged-in user.** Top-level comments and replies created per week (weeks start on Monday),
+        deleted comments not counted. Weeks with no comments are included with 0.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: months
+          in: query
+          required: false
+          schema: { type: integer, enum: [3, 6, 12], default: 6 }
+      responses:
+        '200':
+          description: Totals and one entry per week
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  months: { type: integer, example: 3 }
+                  totals:
+                    type: object
+                    properties:
+                      comments: { type: integer, example: 14 }
+                      replies:  { type: integer, example: 6 }
+                  perWeek:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        week:     { type: string, example: '2026-11-09', description: 'Monday of the week (YYYY-MM-DD)' }
+                        comments: { type: integer, example: 1 }
+                        replies:  { type: integer, example: 1 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /analytics/ai-summaries:
+    get:
+      tags: [Analytics]
+      summary: Who wrote the AI summaries
+      description: |
+        **Any logged-in user.** For published posts created in the period: how many cached summaries
+        came from Gemini, from our own summarizer (`extractive`), or have not been generated yet.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: months
+          in: query
+          required: false
+          schema: { type: integer, enum: [3, 6, 12], default: 6 }
+      responses:
+        '200':
+          description: Counts per summary source
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  months:     { type: integer, example: 6 }
+                  published:  { type: integer, example: 20 }
+                  gemini:     { type: integer, example: 12 }
+                  extractive: { type: integer, example: 3 }
+                  none:       { type: integer, example: 5 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /analytics/review-flow:
+    get:
+      tags: [Analytics]
+      summary: Status changes (review flow)
+      description: |
+        **Any logged-in user.** How many times posts moved from one status to another in the period,
+        from the `post_status_history` table, most frequent first. Feeds the Sankey chart.
+        History before 2026-11-15 was reconstructed from the posts table and is approximate.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: months
+          in: query
+          required: false
+          schema: { type: integer, enum: [3, 6, 12], default: 6 }
+      responses:
+        '200':
+          description: One entry per (from → to) pair
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  months: { type: integer, example: 3 }
+                  links:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        from:  { $ref: '#/components/schemas/PostStatus' }
+                        to:    { $ref: '#/components/schemas/PostStatus' }
+                        count: { type: integer, example: 4 }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
+  /analytics/insights:
+    get:
+      tags: [Analytics, AI]
+      summary: Written summary of the dashboard (AI)
+      description: |
+        **Any logged-in user.** Collects the dashboard numbers and asks Gemini for a headline, key points
+        and what needs attention. If Gemini is busy or down, a rule-based summary from the same numbers is
+        returned instead (`source: rules`). Only counts are sent to the AI, never post titles or content.
+        The result is kept for 10 minutes per period; `refresh=true` writes a new one.
+        Counts against the AI rate limit (30 requests per 10 minutes per user). Can take 5–15 s.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: months
+          in: query
+          required: false
+          schema: { type: integer, enum: [3, 6, 12], default: 6 }
+        - name: refresh
+          in: query
+          required: false
+          schema: { type: boolean, default: false }
+      responses:
+        '200':
+          description: The summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  months:   { type: integer, example: 6 }
+                  headline: { type: string, example: 'Post creation rose 173% to 41 posts over 6 months.' }
+                  points:
+                    type: array
+                    items: { type: string }
+                    example: ['19 posts were published with a 79% approval rate.', 'Average review time was 30.7 h, above the 24 h target.']
+                  attention:
+                    type: array
+                    items: { type: string }
+                    example: ['6 posts are waiting for review; the oldest for 18 days.']
+                  source:      { type: string, enum: [gemini, rules] }
+                  generatedAt: { type: string, format: date-time }
+                  cached:      { type: boolean, description: 'true = the saved copy (up to 10 minutes old)' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+        '429':
+          description: Too many AI requests
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+
+  /analytics/oldest-posts:
+    get:
+      tags: [Analytics]
+      summary: Oldest posts in a status ("needs attention")
+      description: |
+        **Any logged-in user.** Oldest posts first. Without `status` it lists the posts waiting for an
+        admin (pending + clarification). Not limited to a period. Follows the normal visibility rule:
+        users see published posts and their own, admins see all.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { $ref: '#/components/schemas/PostStatus' }
+        - name: limit
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 50, default: 8 }
+      responses:
+        '200':
+          description: Posts, oldest first
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  statuses:
+                    type: array
+                    items: { type: string }
+                    example: [pending, clarification]
+                  posts:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:         { type: integer, example: 14 }
+                        title:      { type: string, example: Birds resting in trees }
+                        status:     { $ref: '#/components/schemas/PostStatus' }
+                        created_at: { type: string, format: date-time }
+                        author:
+                          type: object
+                          properties:
+                            id:   { type: integer, example: 1 }
+                            name: { type: string, example: Shashi }
+                        ageDays:    { type: integer, example: 5, description: Days since the post was created }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '422': { $ref: '#/components/responses/ValidationError' }
+
   # ---------------------------------------------------------------- Images
   /images/{file}:
     get:
@@ -752,7 +1129,10 @@ components:
 
     ChatIntent:
       type: string
-      enum: [find_posts, summarize_post, create_post, post_report, site_help, greeting, out_of_scope]
+      description: |
+        From the trained intent model, except `dashboard_summary`, which the backend spots itself
+        ("summarize the dashboard", "analytics", "how is the blog doing").
+      enum: [find_posts, summarize_post, create_post, post_report, site_help, greeting, out_of_scope, dashboard_summary]
 
     ChatResponse:
       type: object

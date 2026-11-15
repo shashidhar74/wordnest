@@ -26,6 +26,13 @@ export const routes: Routes = [
     loadComponent: () => import('./layout/main-layout/main-layout').then((m) => m.MainLayout),
     children: [
       {
+        path: 'dashboard',
+        title: 'Dashboard',
+        data: { fullWidth: true }, // use the whole screen width (see MainLayout)
+        loadComponent: () =>
+          import('./features/dashboard/dashboard-page').then((m) => m.DashboardPage),
+      },
+      {
         path: 'posts',
         title: 'Posts',
         loadComponent: () =>

@@ -12,14 +12,26 @@
   <div class="card flex p-0.5" role="tablist" aria-label="Filter by status">
     @for (f of filters; track f.label) {
       @let active = status() === f.value;
+      @let count = f.value ? statusCounts()?.[f.value] : allCount();
       <button
         role="tab"
-        class="h-7 rounded-md px-3 text-sm font-medium transition-colors"
+        class="flex h-7 items-center gap-1.5 rounded-md px-3 text-sm font-medium transition-colors"
         [class]="active ? 'bg-brand-soft text-brand' : 'text-fg-muted hover:text-fg'"
         [attr.aria-selected]="active"
         (click)="setStatus(f.value)"
       >
         {{ f.label }}
+        @if (count !== undefined) {
+          <span
+            class="min-w-5 rounded-full px-1.5 font-mono text-2xs leading-4"
+            [class]="
+              active
+                ? 'bg-brand text-brand-fg'
+                : 'bg-surface-2 text-fg-muted ring-1 ring-line ring-inset'
+            "
+            >{{ count }}</span
+          >
+        }
       </button>
     }
   </div>

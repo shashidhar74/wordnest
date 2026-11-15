@@ -100,7 +100,8 @@ function route(
     }
     const res = mockChat(message, roleFromToken(req));
     if (res.intent === 'find_posts') return withRealPosts(res, message, next, apiBase);
-    if (res.intent === 'post_report') return reportFlow(req, message, next, apiBase, res.confidence);
+    if (res.intent === 'post_report')
+      return reportFlow(req, message, next, apiBase, res.confidence);
     if (res.intent === 'summarize_post') {
       return summarizeFlow(req, next, apiBase, {
         query: extractTitle(message),
@@ -187,15 +188,31 @@ const CHAT_RULES: [ChatIntent, RegExp][] = [
     'post_report',
     /\b(report|stats|statistics|breakdown|status[- ]?wise|by status|per status|dashboard|download|export|csv|excel|spreadsheet)\b|\b(how many|count|total|number of|kitne)\b|\b(why|reason|feedback|reviewer|kyu|kyon)\b.*\b(reject\w*|sent back|clarification|review\w*)\b|\breject\w*\b.*\b(kyu|kyon|why)\b/i,
   ],
-  ['site_help', /\b(how (do|can|to)|why|what does|where|can't|cannot|error|password|sign ?up|log ?in|pending|status|image size|format|kaise)\b/i],
-  ['create_post', /\b(write|create|draft|compose|make|publish|likh|bana)\b.*\b(post|blog|article)\b|\bnew (post|article)\b/i],
-  ['summarize_post', /\b(summar|tl;?dr|gist|key points|takeaway|short version|sum (it )?up|recap)/i],
-  ['find_posts', /\b(find|search|show|any|looking for|recommend|read|dikhao|list|latest|all)\b.*\b(posts?|articles?|blogs?)\b|\bposts? (about|on)\b/i],
-  ['greeting', /^(hi+|hello|hey|yo|namaste|good (morning|evening|afternoon)|thanks?|thank you|thx|bye|kaise ho|what'?s up)\b/i],
+  [
+    'site_help',
+    /\b(how (do|can|to)|why|what does|where|can't|cannot|error|password|sign ?up|log ?in|pending|status|image size|format|kaise)\b/i,
+  ],
+  [
+    'create_post',
+    /\b(write|create|draft|compose|make|publish|likh|bana)\b.*\b(post|blog|article)\b|\bnew (post|article)\b/i,
+  ],
+  [
+    'summarize_post',
+    /\b(summar|tl;?dr|gist|key points|takeaway|short version|sum (it )?up|recap)/i,
+  ],
+  [
+    'find_posts',
+    /\b(find|search|show|any|looking for|recommend|read|dikhao|list|latest|all)\b.*\b(posts?|articles?|blogs?)\b|\bposts? (about|on)\b/i,
+  ],
+  [
+    'greeting',
+    /^(hi+|hello|hey|yo|namaste|good (morning|evening|afternoon)|thanks?|thank you|thx|bye|kaise ho|what'?s up)\b/i,
+  ],
 ];
 
 const CHAT_REPLIES: Record<ChatIntent, string> = {
-  greeting: 'Hi! I can find posts, summarize a post, help you write one, or answer questions about the blog.',
+  greeting:
+    'Hi! I can find posts, summarize a post, help you write one, or answer questions about the blog.',
   find_posts: 'Searching the published posts…', // replaced by withRealPosts()
   summarize_post: 'Summarizing…', // replaced by summarizeFlow()
   post_report: 'Preparing your report…', // replaced by reportFlow()
@@ -203,7 +220,9 @@ const CHAT_REPLIES: Record<ChatIntent, string> = {
   site_help:
     'Creators write posts and submit them for review; an admin approves, rejects or sends them back. ' +
     'Images must be PNG or JPG, up to 2 MB.',
-  out_of_scope: "Sorry, I can only help with this blog: finding, summarizing and writing posts.",
+  out_of_scope: 'Sorry, I can only help with this blog: finding, summarizing and writing posts.',
+  // The fake backend has no dashboard data; only the real one (GET /analytics/insights) can answer this
+  dashboard_summary: 'The dashboard summary needs the real backend (mock chat is on).',
 };
 
 function mockChat(message: string, role: string | undefined): ChatResponse {
@@ -347,15 +366,24 @@ function extractTitle(message: string): string | undefined {
   if (quoted) return quoted[1].trim();
   const rest = message
     .replace(/^(please\s+|pls\s+|can you\s+)?/i, '')
-    .replace(/\b(summari[sz]e|summary( of)?|tl;?dr( of)?|sum up|gist( of)?|recap( of)?|key points( of| from)?)\b/gi, '')
-    .replace(/\b(the|this|that|a|me|for|of|post|article|blog|called|titled|named|please|pls)\b/gi, '')
+    .replace(
+      /\b(summari[sz]e|summary( of)?|tl;?dr( of)?|sum up|gist( of)?|recap( of)?|key points( of| from)?)\b/gi,
+      '',
+    )
+    .replace(
+      /\b(the|this|that|a|me|for|of|post|article|blog|called|titled|named|please|pls)\b/gi,
+      '',
+    )
     .replace(ORDINAL, '');
   const title = stripPunctuation(rest);
   return title.length >= 3 ? title : undefined;
 }
 
 function stripPunctuation(text: string): string {
-  return text.replace(/[?.!,:;]+/g, ' ').replace(/\s+/g, ' ').trim();
+  return text
+    .replace(/[?.!,:;]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 function chatReply(body: ChatResponse) {
@@ -444,7 +472,9 @@ function reportFlow(
 ): Observable<HttpEvent<unknown>> {
   const { userId, role } = claimsFromToken(req);
   const base: ChatResponse = { intent: 'post_report', confidence, reply: '' };
-  const asksWhy = /\b(why|reasons?|feedback|reviewer|review comments?|say|said|kyu|kyon)\b/i.test(message);
+  const asksWhy = /\b(why|reasons?|feedback|reviewer|review comments?|say|said|kyu|kyon)\b/i.test(
+    message,
+  );
   const wantsFile = /\b(download|export|csv|excel|spreadsheet)\b/i.test(message);
   const isAdmin = role === 'admin';
   const isCreator = role === 'creator';
@@ -473,7 +503,10 @@ function reportFlow(
   // Readers: only public information.
   if (!isAdmin && !isCreator) {
     if (asksWhy) {
-      return ok({ ...base, reply: "(mock) Only the post's author or an admin can see review comments." });
+      return ok({
+        ...base,
+        reply: "(mock) Only the post's author or an admin can see review comments.",
+      });
     }
     return listByStatus(next, apiBase, 'published').pipe(
       map(({ total }) =>

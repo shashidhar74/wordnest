@@ -1,3 +1,4 @@
+export * from './analytics.model';
 export * from './api.model';
 export * from './auth.model';
 export * from './chat.model';

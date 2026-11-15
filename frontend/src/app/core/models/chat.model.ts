@@ -11,7 +11,9 @@ export type ChatIntent =
   | 'post_report'
   | 'site_help'
   | 'greeting'
-  | 'out_of_scope';
+  | 'out_of_scope'
+  /** Not from the trained model: the backend spots "dashboard" / "analytics" itself. */
+  | 'dashboard_summary';
 
 /** One row of a post_report table, e.g. { status: 'pending', label: 'Pending', count: 3 }. */
 export interface ChatStatRow {
